@@ -30,17 +30,23 @@ func main() {
 	}
 
 	// Serve static files from the "web" directory
-	fs := http.FileServer(http.Dir("./web"))
+	fs := http.FileServer(http.Dir("/app/web"))
 	http.Handle("/web/", http.StripPrefix("/web/", fs))
 
-	// Handle the root path to serve the homepage or redirect to Strava's OAuth page
+	// Serve index.html on the root path
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			log.Info("Serving index.html")
-			http.ServeFile(w, r, "./web/index.html")
+			http.ServeFile(w, r, "/app/web/index.html")
 		} else {
 			http.NotFound(w, r)
 		}
+	})
+
+	// Handle the OAuth redirect to Strava
+	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
+		log.Info("Redirecting to Strava's OAuth page")
+		http.Redirect(w, r, t.GetAuthURL(), http.StatusFound)
 	})
 
 	// Handle the callback from Strava

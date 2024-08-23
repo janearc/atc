@@ -20,6 +20,7 @@ FROM alpine:latest
 # Copy the built Go binary from the builder image
 COPY --from=builder /app/atc .
 COPY --from=builder /app/config /app/config
+COPY --from=builder /app/web /app/web
 
 # Expose the application's port
 EXPOSE 8080
