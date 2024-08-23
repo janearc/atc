@@ -29,7 +29,7 @@ type Transport struct {
 
 // LoadSecrets reads the secrets.yml file and returns a Secrets struct.
 func LoadSecrets() (*Secrets, error) {
-	file, err := os.Open("config/secrets.yml")
+	file, err := os.Open("/app/config/secrets.yml")
 	if err != nil {
 		return nil, err
 	}

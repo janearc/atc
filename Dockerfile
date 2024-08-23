@@ -1,11 +1,8 @@
-ARG BINARY="atc"
-ARG RUNTIME="/app"
-
 # Use an official Golang image as the base image for building the application
 FROM golang:1.18-alpine AS builder
 
 # Set the working directory inside the container
-WORKDIR $RUNTIME
+WORKDIR /app
 
 # Copy the Go modules manifests and install dependencies
 COPY go.mod go.sum ./
@@ -15,16 +12,17 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o $BINARY .
+RUN go build -o atc .
 
 # Use a lightweight image to run the application
 FROM alpine:latest
 
 # Copy the built Go binary from the builder image
-COPY --from=builder $RUNTIME/$BINARY .
+COPY --from=builder /app/atc .
+COPY --from=builder /app/config /app/config
 
 # Expose the application's port
 EXPOSE 8080
 
 # Command to run the application
-CMD ["./$BINARY"]
+CMD ["./atc"]

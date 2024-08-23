@@ -17,7 +17,8 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	file, err := os.Open("config/config.yml")
+	// NOTE: this is a weird path because of docker
+	file, err := os.Open("/app/config/config.yml")
 	if err != nil {
 		return nil, err
 	}
