@@ -29,10 +29,18 @@ func main() {
 		log.Fatalf("Failed to initialize transport: %v", err)
 	}
 
-	// Handle the root path to redirect to Strava's OAuth page
+	// Serve static files from the "web" directory
+	fs := http.FileServer(http.Dir("./web"))
+	http.Handle("/web/", http.StripPrefix("/web/", fs))
+
+	// Handle the root path to serve the homepage or redirect to Strava's OAuth page
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Info("Redirecting to Strava's OAuth page")
-		http.Redirect(w, r, t.GetAuthURL(), http.StatusFound)
+		if r.URL.Path == "/" {
+			log.Info("Serving index.html")
+			http.ServeFile(w, r, "./web/index.html")
+		} else {
+			http.NotFound(w, r)
+		}
 	})
 
 	// Handle the callback from Strava
@@ -72,7 +80,7 @@ func main() {
 			Activities: activities,
 		}
 
-		// Display the athlete's activities
+		// Display the athlete's activities in the response
 		log.WithField("activities", len(athlete.Activities)).Info("Displaying athlete activities")
 		fmt.Fprintf(w, "Athlete Activities: %+v\n", athlete)
 	})
