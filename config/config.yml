@@ -1,0 +1,6 @@
+server:
+  port: 80
+  redirect_uri: "https://swan-cool-tiger.ngrok.io/oauth/callback"
+
+strava:
+  url: "https://www.strava.com"
