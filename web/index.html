@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATC App</title>
-    <link rel="stylesheet" href="/web/style.css">
+    <title>Activity Data</title>
+    <script src="app.js"></script>
 </head>
 <body>
-<h1>Welcome to the ATC App</h1>
-<p>Click the button below to connect with Strava:</p>
-<button id="strava-auth">Connect with Strava</button>
-<div id="output"></div>
-
-<script src="/web/app.js"></script>
+<h1>Your Activities</h1>
+<table id="activities-table" border="1">
+    <tr>
+        <th>Type</th>
+        <th>Duration (min)</th>
+        <th>TSS</th>
+    </tr>
+</table>
 </body>
 </html>

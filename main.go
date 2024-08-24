@@ -105,12 +105,30 @@ func main() {
 			Activities: activities,
 		}
 
-		// Log and display the athlete's activities in the response
-		log.WithField("activities", len(athlete.Activities)).Info("Displaying athlete activities")
-		log.Infof("Athlete Activities: %+v", athlete)
+		// Render the activities in an HTML table
+		renderActivitiesTable(w, athlete.Activities)
 	})
 
 	// Start the server on the configured port
 	log.Infof("Starting server on :%d", config.Server.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Server.Port), nil))
+}
+
+// renderActivitiesTable generates an HTML table of activities and writes it to the response writer
+func renderActivitiesTable(w http.ResponseWriter, activities []models.Activity) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Start the HTML document
+	fmt.Fprintf(w, "<html><head><title>Activity Data</title></head><body>")
+	fmt.Fprintf(w, "<h1>Your Activities</h1>")
+	fmt.Fprintf(w, "<table border='1'><tr><th>Type</th><th>Duration (min)</th><th>TSS</th></tr>")
+
+	// Populate the table with activity data
+	for _, activity := range activities {
+		durationMinutes := activity.MovingTime / 60
+		fmt.Fprintf(w, "<tr><td>%s</td><td>%d</td><td>%.2f</td></tr>", activity.Type, durationMinutes, activity.TSS)
+	}
+
+	// End the HTML document
+	fmt.Fprintf(w, "</table></body></html>")
 }
