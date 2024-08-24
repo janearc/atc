@@ -1,6 +1,7 @@
 package main
 
 import (
+	"atc/models"
 	"atc/transport"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -65,19 +66,48 @@ func main() {
 			return
 		}
 
+		token := t.GetAccessToken()
 		log.Info("Successfully retrieved access token")
 
-		// Make a request to OpenAI
-		prompt := "Tell me about the importance of leg day."
-		response, err := t.OpenAIRequest(prompt)
+		// Fetch the last six weeks of Swim, Bike, and Run activities
+		log.Info("Fetching activities...")
+		stravaActivities, err := t.FetchActivities(token)
 		if err != nil {
-			log.WithError(err).Error("Failed to get response from OpenAI")
-			http.Error(w, "Failed to get response from OpenAI", http.StatusInternalServerError)
+			log.WithError(err).Error("Failed to fetch activities")
+			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
 			return
 		}
 
-		log.Info("OpenAI response: ", response)
-		fmt.Fprintf(w, "OpenAI Response: %s\n", response)
+		// Map Strava activities to your model's Activity struct and calculate TSS
+		var activities []models.Activity
+		for _, sa := range stravaActivities {
+			var thresholdHR float64
+
+			// Determine the correct threshold HR based on the activity type
+			switch sa.Type {
+			case "Run":
+				thresholdHR = config.Athlete.Run.ThresholdHR
+			case "Ride":
+				thresholdHR = config.Athlete.Bike.ThresholdHR
+			case "Swim":
+				thresholdHR = config.Athlete.Swim.ThresholdHR
+			default:
+				log.Warnf("Unknown activity type: %s", sa.Type)
+				continue // Skip unknown activity types
+			}
+
+			activity := models.NewActivity(sa, thresholdHR)
+			activities = append(activities, activity)
+		}
+
+		// Create the Athlete struct and assign activities
+		athlete := models.Athlete{
+			Activities: activities,
+		}
+
+		// Log and display the athlete's activities in the response
+		log.WithField("activities", len(athlete.Activities)).Info("Displaying athlete activities")
+		log.Infof("Athlete Activities: %+v", athlete)
 	})
 
 	// Start the server on the configured port

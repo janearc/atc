@@ -4,3 +4,11 @@ server:
 
 strava:
   url: "https://www.strava.com"
+
+athlete:
+  run:
+    threshold_hr: 171
+  swim:
+    threshold_hr: 144
+  bike:
+    threshold_hr: 164

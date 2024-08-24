@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"atc/models"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -127,6 +129,41 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	return io.ReadAll(resp.Body)
+}
+
+// FetchActivities retrieves activities from Strava API that are of type Swim, Bike, or Run and occurred in the last six weeks.
+func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, error) {
+	// Calculate the Unix timestamp for six weeks ago
+	sixWeeksAgo := time.Now().AddDate(0, 0, -42).Unix()
+
+	// Define the activity types we're interested in
+	activityTypes := []string{"Swim", "Ride", "Run"}
+
+	var allActivities []models.StravaActivity
+
+	// Fetch activities for each type
+	for _, activityType := range activityTypes {
+		url := fmt.Sprintf("%s/api/v3/athlete/activities?access_token=%s&after=%d&per_page=200", t.url, token, sixWeeksAgo)
+		resp, err := t.httpClient.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch activities from Strava: %w", err)
+		}
+		defer resp.Body.Close()
+
+		var activities []models.StravaActivity
+		if err := json.NewDecoder(resp.Body).Decode(&activities); err != nil {
+			return nil, fmt.Errorf("failed to decode activities: %w", err)
+		}
+
+		// Filter activities by the desired types
+		for _, activity := range activities {
+			if activity.Type == activityType {
+				allActivities = append(allActivities, activity)
+			}
+		}
+	}
+
+	return allActivities, nil
 }
 
 func (t *Transport) OpenAIRequest(prompt string) (string, error) {
