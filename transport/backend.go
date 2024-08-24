@@ -1,8 +1,10 @@
 package transport
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +18,9 @@ type Secrets struct {
 		ClientID     string `yaml:"client_id"`
 		ClientSecret string `yaml:"client_secret"`
 	} `yaml:"strava"`
+	OpenAI struct {
+		APIKey string `yaml:"api_key"`
+	} `yaml:"openai"`
 }
 
 type Transport struct {
@@ -25,6 +30,7 @@ type Transport struct {
 	url          string
 	httpClient   *http.Client
 	accessToken  string
+	openAIKey    string
 }
 
 // LoadSecrets reads the secrets.yml file and returns a Secrets struct.
@@ -57,6 +63,7 @@ func NewTransport(config *Config) (*Transport, error) {
 		redirectURI:  config.Server.RedirectURI,
 		url:          config.Strava.Url,
 		httpClient:   &http.Client{},
+		openAIKey:    secrets.OpenAI.APIKey,
 	}, nil
 }
 
@@ -120,4 +127,52 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	return io.ReadAll(resp.Body)
+}
+
+func (t *Transport) OpenAIRequest(prompt string) (string, error) {
+	requestBody, err := json.Marshal(map[string]interface{}{
+		"model": "gpt-3.5-turbo",
+		"messages": []map[string]string{
+			{"role": "system", "content": "You are a helpful assistant."},
+			{"role": "user", "content": prompt},
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+t.openAIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := t.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log the full response body using logrus
+	logrus.WithField("response_body", string(body)).Info("Full OpenAI Response")
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if choices, ok := response["choices"].([]interface{}); ok && len(choices) > 0 {
+		if message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{}); ok {
+			return message["content"].(string), nil
+		}
+	}
+
+	return "", fmt.Errorf("no valid response from OpenAI")
 }

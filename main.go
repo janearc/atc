@@ -1,8 +1,6 @@
 package main
 
 import (
-	"atc/backend"
-	"atc/models"
 	"atc/transport"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -67,28 +65,19 @@ func main() {
 			return
 		}
 
-		token := t.GetAccessToken()
 		log.Info("Successfully retrieved access token")
 
-		// Fetch the last six weeks of activities
-		log.Info("Fetching activities...")
-		activities, err := backend.FetchActivities(config, token)
+		// Make a request to OpenAI
+		prompt := "Tell me about the importance of leg day."
+		response, err := t.OpenAIRequest(prompt)
 		if err != nil {
-			log.WithError(err).Error("Failed to fetch activities")
-			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
+			log.WithError(err).Error("Failed to get response from OpenAI")
+			http.Error(w, "Failed to get response from OpenAI", http.StatusInternalServerError)
 			return
 		}
 
-		log.Info("Successfully fetched activities")
-
-		// Create the Athlete struct and assign activities
-		athlete := models.Athlete{
-			Activities: activities,
-		}
-
-		// Display the athlete's activities in the response
-		log.WithField("activities", len(athlete.Activities)).Info("Displaying athlete activities")
-		fmt.Fprintf(w, "Athlete Activities: %+v\n", athlete)
+		log.Info("OpenAI response: ", response)
+		fmt.Fprintf(w, "OpenAI Response: %s\n", response)
 	})
 
 	// Start the server on the configured port
