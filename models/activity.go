@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // Activity is a simplified version of StravaActivity for internal use.
 type Activity struct {
@@ -13,7 +16,7 @@ type Activity struct {
 	Type               string    `json:"type"`
 	StartDate          time.Time `json:"start_date"`
 	Calories           int       `json:"calories"`
-	TSS                float64   `json:"tss"`               // Calculated TSS
+	TSS                int       `json:"tss"`               // Rounded TSS
 	AverageHeartRate   float64   `json:"average_heartrate"` // in bpm
 	MaxHeartRate       float64   `json:"max_heartrate"`     // in bpm
 }
@@ -48,7 +51,7 @@ func NewActivity(sa StravaActivity, thresholdHR float64) Activity {
 		Type:               sa.Type,
 		StartDate:          sa.StartDate,
 		Calories:           sa.Calories,
-		TSS:                hrTSS,
+		TSS:                int(math.Round(hrTSS)), // Rounded TSS
 		AverageHeartRate:   sa.AverageHeartRate,
 		MaxHeartRate:       sa.MaxHeartRate,
 	}
@@ -66,4 +69,18 @@ func calculateHrTSS(movingTime int, averageHeartRate, thresholdHR float64) float
 	hrTSS := durationHours * IF * IF * 100
 
 	return hrTSS
+}
+
+// calculateCTL calculates the Chronic Training Load (CTL) based on TSS values.
+func CalculateCTL(activities []Activity, days int) float64 {
+	decayFactor := 2.0 / float64(days+1)
+	var ctl float64
+	for i, activity := range activities {
+		if i == 0 {
+			ctl = float64(activity.TSS)
+		} else {
+			ctl = ctl*(1-decayFactor) + float64(activity.TSS)*decayFactor
+		}
+	}
+	return ctl
 }
