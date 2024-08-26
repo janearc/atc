@@ -4,16 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Activity Data</title>
-    <script src="app.js"></script>
 </head>
 <body>
-<h1>Your Activities</h1>
-<table id="activities-table" border="1">
-    <tr>
-        <th>Type</th>
-        <th>Duration (min)</th>
-        <th>TSS</th>
-    </tr>
-</table>
+<h1>Welcome to the Activity Tracker</h1>
+
+<!-- This div will display the OAuth button or the activities/CTL -->
+<div id="content">
+    <!-- Content will be dynamically loaded here -->
+</div>
+
+<script>
+    // Function to check if the token is expired and show the appropriate content
+    function checkTokenAndLoadContent() {
+        fetch("/activities", { method: 'GET' })
+            .then(response => {
+                if (response.redirected) {
+                    // If redirected, it means the token is expired or missing, so show the OAuth button
+                    showAuthButton();
+                } else {
+                    // Otherwise, display the activities and CTL
+                    response.text().then(data => {
+                        document.getElementById("content").innerHTML = data;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error checking token or loading activities:', error);
+                showAuthButton(); // Show the auth button if there's an error
+            });
+    }
+
+    // Function to display the OAuth button
+    function showAuthButton() {
+        document.getElementById("content").innerHTML = `
+                <button id="auth-button">Connect with Strava</button>
+            `;
+        document.getElementById("auth-button").addEventListener("click", function() {
+            window.location.href = "/auth";
+        });
+    }
+
+    // Check the token and load content when the page loads
+    window.onload = checkTokenAndLoadContent;
+</script>
 </body>
 </html>

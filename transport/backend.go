@@ -32,6 +32,8 @@ type Transport struct {
 	url          string
 	httpClient   *http.Client
 	accessToken  string
+	refreshToken string
+	expiresAt    time.Time
 	openAIKey    string
 }
 
@@ -79,7 +81,7 @@ func (t *Transport) GetAuthURL() string {
 	)
 }
 
-// ExchangeCodeForToken exchanges the authorization code for an access token.
+// ExchangeCodeForToken exchanges the authorization code for an access token and stores the refresh token and expiration time.
 func (t *Transport) ExchangeCodeForToken(code string) error {
 	reqURL := fmt.Sprintf("%s/oauth/token", t.url)
 	data := url.Values{
@@ -103,15 +105,68 @@ func (t *Transport) ExchangeCodeForToken(code string) error {
 
 	if token, ok := result["access_token"].(string); ok {
 		t.accessToken = token
-		return nil
+	} else {
+		return fmt.Errorf("failed to retrieve access token")
 	}
 
-	return fmt.Errorf("failed to retrieve access token")
+	if refreshToken, ok := result["refresh_token"].(string); ok {
+		t.refreshToken = refreshToken
+	} else {
+		return fmt.Errorf("failed to retrieve refresh token")
+	}
+
+	if expiresIn, ok := result["expires_in"].(float64); ok {
+		t.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
+	}
+
+	return nil
 }
 
 // GetAccessToken returns the access token.
 func (t *Transport) GetAccessToken() string {
 	return t.accessToken
+}
+
+// GetRefreshToken returns the stored refresh token.
+func (t *Transport) GetRefreshToken() string {
+	return t.refreshToken
+}
+
+// IsTokenExpired checks if the current access token is expired.
+func (t *Transport) IsTokenExpired() bool {
+	return time.Now().After(t.expiresAt)
+}
+
+// RefreshAccessToken uses the refresh token to obtain a new access token.
+func (t *Transport) RefreshAccessToken(refreshToken string) (string, error) {
+	reqURL := fmt.Sprintf("%s/oauth/token", t.url)
+	data := url.Values{
+		"client_id":     {t.clientID},
+		"client_secret": {t.clientSecret},
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+	}
+
+	resp, err := t.httpClient.PostForm(reqURL, data)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if newAccessToken, ok := result["access_token"].(string); ok {
+		t.accessToken = newAccessToken
+		if expiresIn, ok := result["expires_in"].(float64); ok {
+			t.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
+		}
+		return newAccessToken, nil
+	}
+
+	return "", fmt.Errorf("failed to refresh access token")
 }
 
 // ExampleRequest makes an authenticated request to Strava API.
@@ -133,15 +188,11 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 
 // FetchActivities retrieves activities from Strava API that are of type Swim, Bike, or Run and occurred in the last six weeks.
 func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, error) {
-	// Calculate the Unix timestamp for six weeks ago
 	sixWeeksAgo := time.Now().AddDate(0, 0, -42).Unix()
 
-	// Define the activity types we're interested in
 	activityTypes := []string{"Swim", "Ride", "Run"}
-
 	var allActivities []models.StravaActivity
 
-	// Fetch activities for each type
 	for _, activityType := range activityTypes {
 		url := fmt.Sprintf("%s/api/v3/athlete/activities?access_token=%s&after=%d&per_page=200", t.url, token, sixWeeksAgo)
 		resp, err := t.httpClient.Get(url)
@@ -155,7 +206,6 @@ func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, erro
 			return nil, fmt.Errorf("failed to decode activities: %w", err)
 		}
 
-		// Filter activities by the desired types
 		for _, activity := range activities {
 			if activity.Type == activityType {
 				allActivities = append(allActivities, activity)
@@ -166,6 +216,7 @@ func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, erro
 	return allActivities, nil
 }
 
+// OpenAIRequest sends a request to OpenAI's API and logs the full response using logrus.
 func (t *Transport) OpenAIRequest(prompt string) (string, error) {
 	requestBody, err := json.Marshal(map[string]interface{}{
 		"model": "gpt-3.5-turbo",
@@ -197,7 +248,6 @@ func (t *Transport) OpenAIRequest(prompt string) (string, error) {
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Log the full response body using logrus
 	logrus.WithField("response_body", string(body)).Info("Full OpenAI Response")
 
 	var response map[string]interface{}

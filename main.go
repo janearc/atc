@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"time"
 )
 
 var log = logrus.New()
@@ -29,7 +30,7 @@ func main() {
 	}
 
 	// Serve static files from the "web" directory
-	fs := http.FileServer(http.Dir("./web"))
+	fs := http.FileServer(http.Dir("/app/web"))
 	http.Handle("/", fs)
 
 	// Handle the OAuth redirect to Strava
@@ -38,9 +39,9 @@ func main() {
 		http.Redirect(w, r, t.GetAuthURL(), http.StatusFound)
 	})
 
-	// Handle the callback from Strava
+	// Handle the callback from Strava and store the token in a cookie
 	http.HandleFunc("/oauth/callback", func(w http.ResponseWriter, r *http.Request) {
-		log.Info("Received callback from Strava")
+		log.Infof("Received callback from Strava with URL: %s", r.URL.String())
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
@@ -57,7 +58,84 @@ func main() {
 		}
 
 		token := t.GetAccessToken()
+		refreshToken := t.GetRefreshToken()
+
 		log.Info("Successfully retrieved access token")
+
+		// Store the access token and refresh token in cookies
+		http.SetCookie(w, &http.Cookie{
+			Name:     "strava_token",
+			Value:    token,
+			Path:     "/",
+			Expires:  time.Now().Add(24 * time.Hour),
+			HttpOnly: true,
+			Secure:   true,
+		})
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "strava_refresh_token",
+			Value:    refreshToken,
+			Path:     "/",
+			Expires:  time.Now().Add(30 * 24 * time.Hour), // Refresh token typically lasts longer
+			HttpOnly: true,
+			Secure:   true,
+		})
+
+		// Redirect to the home page after setting the cookies
+		http.Redirect(w, r, "/", http.StatusFound)
+	})
+
+	// Handle requests to fetch activities and display CTL
+	http.HandleFunc("/activities", func(w http.ResponseWriter, r *http.Request) {
+		// Check for the OAuth token in cookies
+		cookie, err := r.Cookie("strava_token")
+		if err != nil {
+			if err == http.ErrNoCookie {
+				log.Warn("No strava_token cookie found, redirecting to OAuth")
+				http.Redirect(w, r, "/auth", http.StatusFound)
+				return
+			}
+			log.WithError(err).Error("Failed to retrieve cookie")
+			http.Error(w, "Failed to retrieve cookie", http.StatusInternalServerError)
+			return
+		}
+
+		token := cookie.Value
+
+		// Check if the token is expired and refresh it if necessary
+		if t.IsTokenExpired() {
+			log.Info("Token expired, attempting to refresh...")
+			refreshCookie, err := r.Cookie("strava_refresh_token")
+			if err != nil {
+				log.WithError(err).Error("Failed to retrieve refresh token cookie, redirecting to OAuth")
+				http.Redirect(w, r, "/auth", http.StatusFound)
+				return
+			}
+
+			refreshToken := refreshCookie.Value
+			newAccessToken, err := t.RefreshAccessToken(refreshToken)
+			if err != nil {
+				log.WithError(err).Error("Failed to refresh access token, redirecting to OAuth")
+				http.Redirect(w, r, "/auth", http.StatusFound)
+				return
+			}
+
+			log.Info("Token refreshed successfully")
+
+			// Update the access token cookie with the new token
+			http.SetCookie(w, &http.Cookie{
+				Name:     "strava_token",
+				Value:    newAccessToken,
+				Path:     "/",
+				Expires:  time.Now().Add(24 * time.Hour),
+				HttpOnly: true,
+				Secure:   true,
+			})
+
+			token = newAccessToken
+		} else {
+			log.Info("Token is still valid, proceeding with fetching activities")
+		}
 
 		// Fetch the last six weeks of Swim, Bike, and Run activities
 		log.Info("Fetching activities...")
@@ -65,6 +143,14 @@ func main() {
 		if err != nil {
 			log.WithError(err).Error("Failed to fetch activities")
 			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
+			return
+		}
+
+		log.Infof("Fetched %d activities", len(stravaActivities))
+
+		if len(stravaActivities) == 0 {
+			log.Warn("No activities found")
+			fmt.Fprintf(w, "No activities found")
 			return
 		}
 
@@ -89,6 +175,8 @@ func main() {
 			activity := models.NewActivity(sa, thresholdHR)
 			activities = append(activities, activity)
 		}
+
+		log.Infof("Mapped to %d activities", len(activities))
 
 		// Calculate CTL for Swim, Bike, and Run separately using models.CalculateCTL
 		swimCTL := models.CalculateCTL(filterActivitiesByType(activities, "Swim"), 42)
@@ -115,6 +203,8 @@ func filterActivitiesByType(activities []models.Activity, activityType string) [
 	return filtered
 }
 
+// renderActivitiesTableWithCTL generates an HTML table of activities and writes it to the response writer
+// Also displays the CTL for Swim, Bike, and Run
 func renderActivitiesTableWithCTL(w http.ResponseWriter, activities []models.Activity, swimCTL, bikeCTL, runCTL float64) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -135,7 +225,7 @@ func renderActivitiesTableWithCTL(w http.ResponseWriter, activities []models.Act
 	fmt.Fprintf(w, "<h2>Chronic Training Load (CTL)</h2>")
 	fmt.Fprintf(w, "<p>Swim CTL: %.2f</p>", swimCTL)
 	fmt.Fprintf(w, "<p>Bike CTL: %.2f</p>", bikeCTL)
-	fmt.Fprintf(w, "<p>Run CTL: %.2f</p>", runCTL) // Correctly passing runCTL
+	fmt.Fprintf(w, "<p>Run CTL: %.2f</p>", runCTL)
 
 	// End the HTML document
 	fmt.Fprintf(w, "</body></html>")
