@@ -94,28 +94,39 @@ func (t *Transport) ExchangeCodeForToken(code string) error {
 
 	resp, err := t.httpClient.PostForm(reqURL, data)
 	if err != nil {
+		logrus.WithError(err).Error("Failed to post form to exchange code for token")
 		return err
 	}
 	defer resp.Body.Close()
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		logrus.WithError(err).Error("Failed to decode response body")
 		return err
 	}
 
 	if token, ok := result["access_token"].(string); ok {
 		t.accessToken = token
 	} else {
+		logrus.Error("Failed to retrieve access token from response body")
+		resultJSON, err := json.Marshal(result)
+		if err != nil {
+			logrus.WithError(err).Error("Failed to marshal response body")
+			return fmt.Errorf("failed to retrieve access token")
+		}
+		logrus.WithField("result", string(resultJSON)).Error("unexpected response body")
 		return fmt.Errorf("failed to retrieve access token")
 	}
 
 	if refreshToken, ok := result["refresh_token"].(string); ok {
 		t.refreshToken = refreshToken
 	} else {
+		logrus.Error("Failed to retrieve refresh token from response body")
 		return fmt.Errorf("failed to retrieve refresh token")
 	}
 
 	if expiresIn, ok := result["expires_in"].(float64); ok {
+		logrus.Infof("Token expiry in %f seconds", expiresIn)
 		t.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
 	}
 
