@@ -33,6 +33,35 @@ func main() {
 	fs := http.FileServer(http.Dir("/app/web"))
 	http.Handle("/", fs)
 
+	// handle the "about" request
+	http.HandleFunc("/about", func(w http.ResponseWriter, r *http.Request) {
+		html := fmt.Sprintf(`
+		<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Activity Dashboard</title>
+			<style>
+				/* TODO: */
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<h3>ATC</h3>
+				<p>ATC is a web application that helps athletes track their performance and progress in swimming, biking, and running.</p>
+				<p>author: Jane Arc</p>
+				<p>Build Version: %s</p>
+				<p>Build Date: %s</p>
+				<p>source: <a href="http://github.com/janearc/atc">http://github.com/janearc/atc</a></p>
+			</div>
+		</body>
+		</html>
+		`, config.Build.Build, config.Build.BuildDate)
+
+		w.Write([]byte(html))
+	})
+
 	// Handle the OAuth redirect to Strava
 	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		log.Info("Redirecting to Strava's OAuth page")

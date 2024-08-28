@@ -1,3 +1,5 @@
+.ONESHELL:
+
 secrets:
 	yq . ${HOME}/.atc/secrets.yml > config/secrets.yml
 	@echo "local secrets file is now tainted, use \"make rmsecrets\" to remove before committing"
@@ -9,4 +11,10 @@ rmsecrets:
 docker:
 	docker buildx build --no-cache --tag atc:latest --load .
 
-build: secrets docker
+version:
+	@echo "Updating version data"
+	@echo "version:" > config/version.yml
+	@echo "  build_date: \"`date`\"" >> config/version.yml
+	@echo "  build: \"`git describe --tags --always`\"" >> config/version.yml
+
+build: version secrets docker 
