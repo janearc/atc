@@ -28,6 +28,11 @@ type Config struct {
 			ThresholdHR float64 `yaml:"threshold_hr"`
 		} `yaml:"bike"`
 	} `yaml:"athlete"`
+
+	Build struct {
+		BuildDate string `yaml:"build_date"`
+		Build     string `yaml:"build"`
+	} `yaml:"version"`
 }
 
 // LoadConfig reads the config.yml file and returns a Config struct.
@@ -39,7 +44,10 @@ func LoadConfig() (*Config, error) {
 	}
 	defer file.Close()
 
+	// Create a new Config struct
 	var config Config
+
+	// Decode the config file
 	decoder := yaml.NewDecoder(file)
 	if err := decoder.Decode(&config); err != nil {
 		logrus.WithError(err).Fatal("Failed to decode config file")
@@ -47,5 +55,20 @@ func LoadConfig() (*Config, error) {
 	}
 
 	logrus.Info("Successfully loaded configuration")
+
+	vf, err := os.Open("/app/config/version.yml")
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to open version file")
+		return nil, err
+	}
+	defer vf.Close()
+
+	// Decode the version file
+	vfDecoder := yaml.NewDecoder(vf)
+	if err := vfDecoder.Decode(&config); err != nil {
+		logrus.WithError(err).Fatal("Failed to decode version file")
+		return nil, err
+	}
+
 	return &config, nil
 }
