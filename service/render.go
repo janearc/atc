@@ -6,10 +6,12 @@ import (
 	"net/http"
 )
 
+// TODO: this could probably be broken into html renders and json renders per github #21
+
 // this file contains helper functions which render html for the web service
 
-// renderActivitiesTableWithCTL generates an HTML table of activities and writes it to the response writer
-// Also displays the CTL for Swim, Bike, and Run
+// renderActivitiesTableWithCTL generates an HTML table of activities with CTL and IF values
+// and writes it back to the http writer
 func renderActivitiesTableWithCTL(w http.ResponseWriter, activities []models.Activity, swimCTL, bikeCTL, runCTL float64) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 

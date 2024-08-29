@@ -170,8 +170,7 @@ func (s *Service) activitiesHandler() {
 		bikeCTL := models.CalculateCTL(models.FilterActivitiesByType(activities, "Ride"), 42)
 		runCTL := models.CalculateCTL(models.FilterActivitiesByType(activities, "Run"), 42)
 
-		// Render the activities in an HTML table and display CTL
-		// XXX: this is in main.go and probably needs to live somewhere else
+		// ask renderer to display the activities in a table with CTL and IF
 		renderActivitiesTableWithCTL(w, activities, swimCTL, bikeCTL, runCTL)
 	})
 
