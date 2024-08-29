@@ -232,6 +232,7 @@ func filterActivitiesByType(activities []models.Activity, activityType string) [
 	return filtered
 }
 
+// XXX: move to service/handlers.go
 // renderActivitiesTableWithCTL generates an HTML table of activities and writes it to the response writer
 // Also displays the CTL for Swim, Bike, and Run
 func renderActivitiesTableWithCTL(w http.ResponseWriter, activities []models.Activity, swimCTL, bikeCTL, runCTL float64) {
