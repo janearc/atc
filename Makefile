@@ -16,5 +16,6 @@ version:
 	@echo "version:" > config/version.yml
 	@echo "  build_date: \"`date`\"" >> config/version.yml
 	@echo "  build: \"`git describe --tags --always`\"" >> config/version.yml
+	@echo "  branch: \"`git branch | grep '^*' | cut -d' ' -f 2`\"" >> config/version.yml
 
 build: version secrets docker 
