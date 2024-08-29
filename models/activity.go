@@ -98,3 +98,14 @@ func CalculateCTL(activities []Activity, days int) float64 {
 	}
 	return ctl
 }
+
+// FilterActivitiesByType filters the activities by supplied type, e.g., Swim, Ride, Run
+func FilterActivitiesByType(activities []Activity, activityType string) []Activity {
+	var filtered []Activity
+	for _, activity := range activities {
+		if activity.Type == activityType {
+			filtered = append(filtered, activity)
+		}
+	}
+	return filtered
+}
