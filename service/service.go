@@ -56,7 +56,7 @@ func NewService() *Service {
 		Log:     log,
 		Backend: backend,
 		Web: WebService{
-			handle: instantiateWebService(),
+			Handle: instantiateWebService(),
 		},
 	}
 
@@ -66,6 +66,7 @@ func NewService() *Service {
 	s.activitiesHandler()
 	s.aboutHandler()
 
+	// All you gotta do now is s.Start()
 	return s
 }
 

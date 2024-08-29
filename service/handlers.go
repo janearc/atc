@@ -87,7 +87,7 @@ func (s *Service) activitiesHandler() {
 		token := cookie.Value
 
 		// Check if the token is expired and refresh it if necessary
-		if t.IsTokenExpired() {
+		if s.Backend.IsTokenExpired() {
 			s.Log.Info("Token expired, attempting to refresh...")
 			refreshCookie, err := r.Cookie("strava_refresh_token")
 			if err != nil {
@@ -133,12 +133,13 @@ func (s *Service) activitiesHandler() {
 		s.Log.Infof("Fetched %d activities", len(stravaActivities))
 
 		if len(stravaActivities) == 0 {
+			// send to both syslog and the browser to let them know what's happened
 			s.Log.Warn("No activities found")
 			fmt.Fprintf(w, "No activities found")
 			return
 		}
 
-		// Map Strava activities to your model's Activity struct and calculate TSS
+		// Map Strava activities to native Activity struct and calculate TSS
 		var activities []models.Activity
 		for _, sa := range stravaActivities {
 			var thresholdHR float64
@@ -152,8 +153,8 @@ func (s *Service) activitiesHandler() {
 			case "Swim":
 				thresholdHR = config.Athlete.Swim.ThresholdHR
 			default:
-				s.Log.Warnf("Unknown activity type: %s", sa.Type)
-				continue // Skip unknown activity types
+				s.Log.Warnf("Unexpected/unknown activity type: %s", sa.Type)
+				continue // Skip unwanted activity types
 			}
 
 			activity := models.NewActivity(sa, thresholdHR)
@@ -168,6 +169,7 @@ func (s *Service) activitiesHandler() {
 		runCTL := models.CalculateCTL(filterActivitiesByType(activities, "Run"), 42)
 
 		// Render the activities in an HTML table and display CTL
+		// XXX: this is in main.go and probably needs to live somewhere else
 		renderActivitiesTableWithCTL(w, activities, swimCTL, bikeCTL, runCTL)
 	})
 
