@@ -17,6 +17,7 @@ type Activity struct {
 	StartDate          time.Time `json:"start_date"`
 	Calories           int       `json:"calories"`
 	TSS                int       `json:"tss"`               // Rounded TSS
+	IntensityFactor    float64   `json:"intensity_factor"`  // IF
 	AverageHeartRate   float64   `json:"average_heartrate"` // in bpm
 	MaxHeartRate       float64   `json:"max_heartrate"`     // in bpm
 }
@@ -38,10 +39,13 @@ type StravaActivity struct {
 
 // NewActivity creates a new Activity from a StravaActivity and calculates TSS.
 func NewActivity(sa StravaActivity, thresholdHR float64) Activity {
-	// Calculate hrTSS based on heart rate data
+
+	// calculate our normalized values for fitness
 	hrTSS := calculateHrTSS(sa.MovingTime, sa.AverageHeartRate, thresholdHR)
+	intensityFactor := calculateIntensityFactor(sa.AverageHeartRate, thresholdHR)
 
 	return Activity{
+		// these values are ganked from the strava object
 		Id:                 sa.Id,
 		Name:               sa.Name,
 		Distance:           sa.Distance,
@@ -51,30 +55,40 @@ func NewActivity(sa StravaActivity, thresholdHR float64) Activity {
 		Type:               sa.Type,
 		StartDate:          sa.StartDate,
 		Calories:           sa.Calories,
-		TSS:                int(math.Round(hrTSS)), // Rounded TSS
-		AverageHeartRate:   sa.AverageHeartRate,
 		MaxHeartRate:       sa.MaxHeartRate,
+		AverageHeartRate:   sa.AverageHeartRate,
+
+		// these are our values
+		TSS:             hrTSS,
+		IntensityFactor: intensityFactor,
 	}
 }
 
+func calculateIntensityFactor(averageHeartRate float64, thresholdHR float64) float64 {
+	return averageHeartRate / thresholdHR
+}
+
 // calculateHrTSS calculates TSS based on heart rate data.
-func calculateHrTSS(movingTime int, averageHeartRate, thresholdHR float64) float64 {
+func calculateHrTSS(movingTime int, averageHeartRate float64, thresholdHR float64) int {
 	// Convert moving time from seconds to hours
 	durationHours := float64(movingTime) / 3600.0
 
-	// Calculate the Intensity Factor (IF)
-	IF := averageHeartRate / thresholdHR
+	// Calculate IF
+	IF := calculateIntensityFactor(averageHeartRate, thresholdHR)
 
-	// Calculate hrTSS
+	// Calculate hrTSS (this is suspicious but also the number seems accurate so)
 	hrTSS := durationHours * IF * IF * 100
 
-	return hrTSS
+	return int(math.Round(hrTSS))
 }
 
 // calculateCTL calculates the Chronic Training Load (CTL) based on TSS values.
 func CalculateCTL(activities []Activity, days int) float64 {
 	decayFactor := 2.0 / float64(days+1)
 	var ctl float64
+
+	// Issue #11
+	// https://github.com/janearc/atc/issues/11
 	for i, activity := range activities {
 		if i == 0 {
 			ctl = float64(activity.TSS)
