@@ -12,8 +12,9 @@ func (s *Service) oauthRedirectHandler() {
 	// Redirect to Strava for OAuth
 	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		s.Log.Info("Redirecting to Strava for OAuth...")
-		http.Redirect(w, r, t.GetOAuthURL(), http.StatusFound)
+		http.Redirect(w, r, s.Backend.GetAuthURL(), http.StatusFound)
 	})
+
 	return
 }
 
@@ -31,7 +32,7 @@ func (s *Service) oauthCallbackHandler() {
 		}
 
 		s.Log.Info("Exchanging code for token...")
-		if err := t.ExchangeCodeForToken(code); err != nil {
+		if err := s.Backend.ExchangeCodeForToken(code); err != nil {
 			s.Log.WithError(err).Error("Failed to exchange code for token")
 			http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
 			return
@@ -64,6 +65,7 @@ func (s *Service) oauthCallbackHandler() {
 		// Redirect to the home page after setting the cookies
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
+
 	return
 }
 
@@ -97,7 +99,7 @@ func (s *Service) activitiesHandler() {
 			}
 
 			refreshToken := refreshCookie.Value
-			newAccessToken, err := t.RefreshAccessToken(refreshToken)
+			newAccessToken, err := s.Backend.RefreshAccessToken(refreshToken)
 			if err != nil {
 				s.Log.WithError(err).Error("Failed to refresh access token, redirecting to OAuth")
 				http.Redirect(w, r, "/auth", http.StatusFound)
@@ -123,7 +125,7 @@ func (s *Service) activitiesHandler() {
 
 		// Fetch the last six weeks of Swim, Bike, and Run activities
 		s.Log.Info("Fetching activities...")
-		stravaActivities, err := t.FetchActivities(token)
+		stravaActivities, err := s.Backend.FetchActivities(token)
 		if err != nil {
 			s.Log.WithError(err).Error("Failed to fetch activities")
 			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
@@ -147,11 +149,11 @@ func (s *Service) activitiesHandler() {
 			// Determine the correct threshold HR based on the activity type
 			switch sa.Type {
 			case "Run":
-				thresholdHR = config.Athlete.Run.ThresholdHR
+				thresholdHR = s.Config.Athlete.Run.ThresholdHR
 			case "Ride":
-				thresholdHR = config.Athlete.Bike.ThresholdHR
+				thresholdHR = s.Config.Athlete.Bike.ThresholdHR
 			case "Swim":
-				thresholdHR = config.Athlete.Swim.ThresholdHR
+				thresholdHR = s.Config.Athlete.Swim.ThresholdHR
 			default:
 				s.Log.Warnf("Unexpected/unknown activity type: %s", sa.Type)
 				continue // Skip unwanted activity types
@@ -164,9 +166,9 @@ func (s *Service) activitiesHandler() {
 		s.Log.Infof("Mapped to %d activities", len(activities))
 
 		// Calculate CTL for Swim, Bike, and Run separately using models.CalculateCTL
-		swimCTL := models.CalculateCTL(filterActivitiesByType(activities, "Swim"), 42)
-		bikeCTL := models.CalculateCTL(filterActivitiesByType(activities, "Ride"), 42)
-		runCTL := models.CalculateCTL(filterActivitiesByType(activities, "Run"), 42)
+		swimCTL := models.CalculateCTL(models.FilterActivitiesByType(activities, "Swim"), 42)
+		bikeCTL := models.CalculateCTL(models.FilterActivitiesByType(activities, "Ride"), 42)
+		runCTL := models.CalculateCTL(models.FilterActivitiesByType(activities, "Run"), 42)
 
 		// Render the activities in an HTML table and display CTL
 		// XXX: this is in main.go and probably needs to live somewhere else

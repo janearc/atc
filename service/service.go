@@ -11,9 +11,9 @@ import (
 
 type Service struct {
 	Web     WebService
-	Backend Transport
-	Config  Config
-	Log     logrus.Logger
+	Backend *transport.Transport
+	Config  *transport.Config
+	Log     *logrus.Logger
 }
 
 type WebService struct {
@@ -56,6 +56,7 @@ func NewService() *Service {
 		Log:     log,
 		Backend: backend,
 		Web: WebService{
+			// NOTE: this creates the http listener
 			Handle: instantiateWebService(),
 		},
 	}
