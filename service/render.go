@@ -18,18 +18,30 @@ func renderActivitiesTableWithCTL(w http.ResponseWriter, activities []models.Act
 	// Start the HTML document
 	fmt.Fprintf(w, "<html><head><title>Activity Data</title></head><body>")
 	fmt.Fprintf(w, "<h1>Activities (42 days)</h1>")
-	fmt.Fprintf(w, "<table border='1'><tr><th>Date</th><th>Type</th><th>Duration (min)</th><th>TSS</th><th>IF</th></tr>")
+
+	// TODO: this is getting kind of hacky and gross but it works for now.
+	fmt.Fprintf(w,
+		"<table border='1'>"+
+			"<tr>"+
+			"<th>Date</th>"+
+			"<th>Type</th>"+
+			"<th>Duration (min)</th>"+
+			"<th>TSS</th>"+
+			"<th>IF</th>"+
+			"<th>tTSS</th>"+
+			"</tr>")
 
 	// Populate the table with activity data
 	for _, activity := range activities {
 		durationMinutes := activity.MovingTime / 60
 		activityDate := activity.StartDate.Format("2006-01-02")
-		fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td><td>%d</td><td>%d</td><td>%.2f</td></tr>",
+		fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td><td>%d</td><td>%d</td><td>%.2f</td><td>%.2f</td></tr>",
 			activityDate,
 			activity.Type,
 			durationMinutes,
 			activity.TSS,
-			activity.IntensityFactor)
+			activity.IntensityFactor,
+			activity.Trimps)
 	}
 
 	// Display the CTL for each sport

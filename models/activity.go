@@ -17,6 +17,7 @@ type Activity struct {
 	StartDate          time.Time `json:"start_date"`
 	Calories           int       `json:"calories"`
 	TSS                int       `json:"tss"`               // Rounded TSS
+	Trimps             float64   `json:"trimps"`            // TRIMPS
 	IntensityFactor    float64   `json:"intensity_factor"`  // IF
 	AverageHeartRate   float64   `json:"average_heartrate"` // in bpm
 	MaxHeartRate       float64   `json:"max_heartrate"`     // in bpm
@@ -43,6 +44,7 @@ func NewActivity(sa StravaActivity, thresholdHR float64) Activity {
 	// calculate our normalized values for fitness
 	hrTSS := calculateHrTSS(sa.MovingTime, sa.AverageHeartRate, thresholdHR)
 	intensityFactor := calculateIntensityFactor(sa.AverageHeartRate, thresholdHR)
+	trimps := CalculateTRIMPS(float64(sa.MovingTime)/60, sa.AverageHeartRate, thresholdHR)
 
 	return Activity{
 		// these values are ganked from the strava object
@@ -59,6 +61,7 @@ func NewActivity(sa StravaActivity, thresholdHR float64) Activity {
 		AverageHeartRate:   sa.AverageHeartRate,
 
 		// these are our values
+		Trimps:          trimps, // 🦐
 		TSS:             hrTSS,
 		IntensityFactor: intensityFactor,
 	}
@@ -69,17 +72,28 @@ func calculateIntensityFactor(averageHeartRate float64, thresholdHR float64) flo
 }
 
 // calculateHrTSS calculates TSS based on heart rate data.
-func calculateHrTSS(movingTime int, averageHeartRate float64, thresholdHR float64) int {
+func calculateHrTSS(movingTime int, avgHR float64, thresholdHR float64) int {
 	// Convert moving time from seconds to hours
 	durationHours := float64(movingTime) / 3600.0
 
 	// Calculate IF
-	IF := calculateIntensityFactor(averageHeartRate, thresholdHR)
+	IF := calculateIntensityFactor(avgHR, thresholdHR)
 
 	// Calculate hrTSS (this is suspicious but also the number seems accurate so)
 	hrTSS := durationHours * IF * IF * 100
 
 	return int(math.Round(hrTSS))
+}
+
+// training impulse ("trimps" or "ttss") attempts to quantify the training load of a workout incorporating
+// both the duration and intensity of the workout.
+func CalculateTRIMPS(durationMinutes float64, avgHR float64, thresholdHR float64) float64 {
+	// Calculate IF
+	IF := calculateIntensityFactor(avgHR, thresholdHR)
+
+	trimps := durationMinutes * IF * math.Pow(IF, 2)
+
+	return trimps
 }
 
 // calculateCTL calculates the Chronic Training Load (CTL) based on TSS values.
