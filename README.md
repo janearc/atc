@@ -66,7 +66,9 @@ itself and not particular to my access key.
 
 For this discussion, it's important to understand
 
+$$
 \text{CTL} = \frac{\sum \text{TSS} \text{ over 42 days}}{42}
+$$
 
 CTL is sometimes called "fitness." It is an individual, somewhat specific, metric for estimating how
 difficult a workout was for an athlete _to recover from_. IF, or _intentisty factor_, is a measure of
@@ -93,12 +95,14 @@ that CTL. Thus we know what \Delta \text{CTL} is, and we can break that into "ch
 is of course spread over 42 days, and you divide that by however many workouts per week an athlete might
 have.
 
+$$
 \text{Future CTL} = \text{Current CTL} + \Delta \text{CTL}
+$$
 
 So while we might divide this by 42, if in practice an athlete has 3 runs per week, and perhaps that
 long run is one of those days, and one of those days is intervals, we know several things.
 
-* our long run is probably going to be 90 minutes at `IF=.7` (\text{TSS} = \text{Duration (hours)} \times \text{IF}^2 \times 100)
+* our long run is probably going to be 90 minutes at `IF=.7` (`$ \text{TSS} = \text{Duration (hours)} \times \text{IF}^2 \times 100 $`)
 * our intervals run is probably going to be shorter, perhaps 45 minutes, at `IF=.85`
 * this leaves us with 127 TSS for those two runs. if we want to arrive at, for example, 75 TSSd, and we assume equal commitment to swim, bike, and run, this leaves us with a budget of about 50 TSS (525 TSS per week, divided by 3 sports, minus 127 TSS for the other two runs)
 * given we have a budget then of 50 TSS, and we know what the athlete's performance is, we can plan a run that is either short and intense (such as 30 minutes at `IF=1`), or a longer more relaxed run (80 minutes at `IF=.6`)
