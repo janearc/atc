@@ -1,5 +1,14 @@
 .ONESHELL:
 
+PACKAGE_DIRS=$(shell go list ./... | grep -v /vendor/)
+
+tidy:
+	@go mod tidy
+
+test:
+	@echo "crossed fingers emoji running tests"
+	@go test -v $(PACKAGE_DIRS)
+
 secrets:
 	yq . ${HOME}/.atc/secrets.yml > config/secrets.yml
 	@echo "local secrets file is now tainted, use \"make rmsecrets\" to remove before committing"
@@ -18,4 +27,4 @@ version:
 	@echo "  build: \"`git describe --tags --always`\"" >> config/version.yml
 	@echo "  branch: \"`git branch | grep '^*' | cut -d' ' -f 2`\"" >> config/version.yml
 
-build: version secrets docker 
+build: test version secrets docker 
