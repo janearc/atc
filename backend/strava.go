@@ -63,8 +63,24 @@ func FetchActivities(config *transport.Config, token string) ([]models.Activity,
 
 	// Convert StravaActivity to internal Activity type
 	activities := make([]models.Activity, len(stravaActivities))
+
+	// gank the thresholds because we can't refer to named keys with variables
+	// in golang what do you think this is perl? shell? who let you in here?
+	thresholds := map[string]float64{
+		"Swim": config.Athlete.Swim.ThresholdHR,
+		"Bike": config.Athlete.Bike.ThresholdHR,
+		"Run":  config.Athlete.Run.ThresholdHR,
+	}
+
 	for i, sa := range stravaActivities {
-		activities[i] = models.NewActivity(sa)
+		thresholdHR, ok := thresholds[sa.Type]
+
+		if !ok {
+			log.Fatalf("Unknown activity type: %s", sa.Type)
+		}
+
+		// we need to pass the strava activity and a threshold to the native activity constructor
+		activities[i] = models.NewActivity(sa, thresholdHR)
 	}
 
 	return activities, nil
