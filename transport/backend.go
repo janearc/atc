@@ -35,6 +35,7 @@ type Transport struct {
 	refreshToken string
 	expiresAt    time.Time
 	openAIKey    string
+	config       *Config
 }
 
 // LoadSecrets reads the secrets.yml file and returns a Secrets struct.
@@ -141,6 +142,11 @@ func (t *Transport) GetAccessToken() string {
 // GetRefreshToken returns the stored refresh token.
 func (t *Transport) GetRefreshToken() string {
 	return t.refreshToken
+}
+
+// GetConfig returns the internal config used by the backend
+func (t *Transport) GetConfig() *Config {
+	return t.config
 }
 
 // IsTokenExpired checks if the current access token is expired.
