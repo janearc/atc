@@ -62,6 +62,10 @@ full support for the training related things it is designed for. I think if you 
 that would also work for you, because the logic (the structured queries sent to openai) are in the code
 itself and not particular to my access key.
 
+You will also need to define `$ATC_ROOT` if you want to run this locally (or run tests), and this
+defaults to `/app` inside the dockerfile (honestly this should not be an issue at all, but I'm
+documenting here just in case).
+
 ### magical stuff
 
 For this discussion, it's important to understand

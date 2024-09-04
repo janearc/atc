@@ -1,6 +1,8 @@
 # Use an official Golang image as the base image for building the application
 FROM golang:1.18-alpine AS builder
 
+ENV ATC_ROOT=/app
+
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -16,6 +18,8 @@ RUN go build -o atc .
 
 # Use a lightweight image to run the application
 FROM alpine:latest
+
+ENV ATC_ROOT=/app
 
 # Copy the built Go binary from the builder image
 COPY --from=builder /app/atc .

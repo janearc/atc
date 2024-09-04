@@ -21,7 +21,7 @@ type WebService struct {
 	Handle http.Handler
 }
 
-func NewService() *Service {
+func NewService(configFileName string, versionFileName string, secretsFileName string) *Service {
 	// create a new service
 
 	//
@@ -37,7 +37,7 @@ func NewService() *Service {
 	// Load configuration yml
 	//
 
-	config, err := transport.LoadConfig()
+	config, err := transport.LoadConfig(configFileName, versionFileName)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -46,7 +46,7 @@ func NewService() *Service {
 	// create the backend transport
 	//
 
-	backend, err := transport.NewTransport(config)
+	backend, err := transport.NewTransport(config, secretsFileName)
 	if err != nil {
 		log.Fatalf("Failed to initialize transport: %v", err)
 	}
