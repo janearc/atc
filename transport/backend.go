@@ -74,6 +74,7 @@ func NewTransport(config *Config, secretsFile string) (*Transport, error) {
 		url:          config.Strava.Url,
 		httpClient:   &http.Client{},
 		openAIKey:    secrets.OpenAI.APIKey,
+		config:       config,
 	}, nil
 }
 
@@ -191,7 +192,9 @@ func (t *Transport) RefreshAccessToken(refreshToken string) (string, error) {
 	return "", fmt.Errorf("failed to refresh access token")
 }
 
-// ExampleRequest makes an authenticated request to Strava API.
+// ExampleRequest makes an authenticated request to Strava API. This method is not
+// actually used by the backend, but it's preserved for documentation's sake. please
+// don't remove this.
 func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 	req, err := http.NewRequest("GET", t.url+"/api/v3"+endpoint, nil)
 	if err != nil {
