@@ -2,6 +2,9 @@
 
 PACKAGE_DIRS=$(shell go list ./... | grep -v /vendor/)
 
+sanity:
+	@test -d ${ATC_ROOT} && test -d ${ATC_ROOT}/config && test -f ${ATC_ROOT}/config/config.yml && test -f ${ATC_ROOT}/config/secrets.yml && test -f ${ATC_ROOT}/config/version.yml && echo "sane. huzzah!"
+
 tidy:
 	@go mod tidy
 

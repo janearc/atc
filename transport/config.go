@@ -36,10 +36,18 @@ type Config struct {
 }
 
 // LoadConfig reads the config.yml file and returns a Config struct.
-func LoadConfig() (*Config, error) {
-	file, err := os.Open("/app/config/config.yml")
+func LoadConfig(configFileName string, versionFileName string) (*Config, error) {
+	if configFileName == "" {
+		// this is an absolute path but it's inside the docker container
+		// we assume that if we have not been called with a filename, that
+		// we aren't running in a container or we're running locally or
+		// something.
+		configFileName = "/app/config/config.yml"
+	}
+
+	file, err := os.Open(configFileName)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to open config file")
+		logrus.WithError(err).Fatalf("Failed to open config file %s", configFileName)
 		return nil, err
 	}
 	defer file.Close()
@@ -56,9 +64,13 @@ func LoadConfig() (*Config, error) {
 
 	logrus.Info("Successfully loaded configuration")
 
-	vf, err := os.Open("/app/config/version.yml")
+	// same as above, but for the version file
+	if versionFileName == "" {
+		versionFileName = "/app/config/version.yml"
+	}
+	vf, err := os.Open(versionFileName)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to open version file")
+		logrus.WithError(err).Fatalf("Failed to open version file %s", versionFileName)
 		return nil, err
 	}
 	defer vf.Close()
@@ -66,7 +78,7 @@ func LoadConfig() (*Config, error) {
 	// Decode the version file
 	vfDecoder := yaml.NewDecoder(vf)
 	if err := vfDecoder.Decode(&config); err != nil {
-		logrus.WithError(err).Fatal("Failed to decode version file")
+		logrus.WithError(err).Fatalf("Failed to decode version file %s", versionFileName)
 		return nil, err
 	}
 

@@ -39,8 +39,13 @@ type Transport struct {
 }
 
 // LoadSecrets reads the secrets.yml file and returns a Secrets struct.
-func LoadSecrets() (*Secrets, error) {
-	file, err := os.Open("/app/config/secrets.yml")
+func LoadSecrets(secretsFileName string) (*Secrets, error) {
+	// ordinarily we're running in a container somewhere out in the cosmos but for
+	// testing and running locally we want to be able to pass in a specific filename
+	if secretsFileName == "" {
+		secretsFileName = "/app/config/secrets.yml"
+	}
+	file, err := os.Open(secretsFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +61,8 @@ func LoadSecrets() (*Secrets, error) {
 }
 
 // NewTransport initializes the Transport with secrets and config.
-func NewTransport(config *Config) (*Transport, error) {
-	secrets, err := LoadSecrets()
+func NewTransport(config *Config, secretsFile string) (*Transport, error) {
+	secrets, err := LoadSecrets(secretsFile)
 	if err != nil {
 		return nil, err
 	}
