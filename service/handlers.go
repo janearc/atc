@@ -71,6 +71,8 @@ func (s *Service) oauthCallbackHandler() {
 
 // /activities is the endpoint that displays activities and data
 func (s *Service) activitiesHandler() {
+	// behind the scenes this is wrapping transport.FetchActivities
+
 	// Handle requests to fetch activities and display CTL
 	http.HandleFunc("/activities", func(w http.ResponseWriter, r *http.Request) {
 		// Check for the OAuth token in cookies
@@ -159,6 +161,9 @@ func (s *Service) activitiesHandler() {
 				continue // Skip unwanted activity types
 			}
 
+			// this constructs our new native activity, which calculates
+			//   tss, trimps, and hrtss
+			// in the constructor (models/activity) so we don't have to.
 			activity := models.NewActivity(sa, thresholdHR)
 			activities = append(activities, activity)
 		}
