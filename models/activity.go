@@ -38,6 +38,22 @@ type StravaActivity struct {
 	MaxHeartRate       float64   `json:"max_heartrate"`     // in bpm
 }
 
+// NewStravaActivity constructs a StravaActivity (presumably from json data)
+func NewStravaActivity(id int64, name string, distance float64, mt int, et int, teg float64, sport string, startdate time.Time, calories int, avghr float64, maxhr float64) StravaActivity {
+	return StravaActivity{
+		Id:                 id,
+		Name:               name,
+		Distance:           distance,
+		ElapsedTime:        et,
+		TotalElevationGain: teg,
+		Type:               sport,
+		StartDate:          startdate,
+		Calories:           calories,
+		AverageHeartRate:   avghr,
+		MaxHeartRate:       maxhr,
+	}
+}
+
 // NewActivity creates a new Activity from a StravaActivity and calculates TSS.
 func NewActivity(sa StravaActivity, thresholdHR float64) Activity {
 

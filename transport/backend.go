@@ -215,24 +215,61 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, error) {
 	sixWeeksAgo := time.Now().AddDate(0, 0, -42).Unix()
 
-	activityTypes := []string{"Swim", "Ride", "Run"}
+	sports := []string{"Swim", "Ride", "Run"}
+
 	var allActivities []models.StravaActivity
 
-	for _, activityType := range activityTypes {
-		url := fmt.Sprintf("%s/api/v3/athlete/activities?access_token=%s&after=%d&per_page=200", t.url, token, sixWeeksAgo)
-		resp, err := t.httpClient.Get(url)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch activities from Strava: %w", err)
-		}
-		defer resp.Body.Close()
+	// TODO: i feel like these endpoints should be explicitly documented somewhere in code
+	//       so that maintaining them or changing them (should strava change their backend
+	//       for example) is both easy to do, and easy to audit ("where am i using endpoint xyz?")
 
-		var activities []models.StravaActivity
-		if err := json.NewDecoder(resp.Body).Decode(&activities); err != nil {
-			return nil, fmt.Errorf("failed to decode activities: %w", err)
-		}
+	// TODO: i also feel like this is a janky way to create urls for endpoint access.
+	//       there's probably a more elegant way to do this but let's do that in the future.
+	url := fmt.Sprintf("%s/api/v3/athlete/activities?access_token=%s&after=%d&per_page=200", t.url, token, sixWeeksAgo)
+	resp, err := t.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch activities from Strava: %w", err)
+	}
+	defer resp.Body.Close()
 
-		for _, activity := range activities {
-			if activity.Type == activityType {
+	// Temporary structure to hold the raw JSON data
+	var tempActivities []struct {
+		Id                 int64     `json:"id"`
+		Name               string    `json:"name"`
+		Distance           float64   `json:"distance"`
+		MovingTime         int       `json:"moving_time"`
+		ElapsedTime        int       `json:"elapsed_time"`
+		TotalElevationGain float64   `json:"total_elevation_gain"`
+		Type               string    `json:"type"`
+		StartDate          time.Time `json:"start_date"`
+		Calories           int       `json:"calories"`
+		AverageHeartRate   float64   `json:"average_heartrate"`
+		MaxHeartRate       float64   `json:"max_heartrate"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tempActivities); err != nil {
+		return nil, fmt.Errorf("failed to decode activities: %w", err)
+	}
+
+	// map the decoded json data to StravaActivity objects using the constructor
+	for _, ta := range tempActivities {
+		// this is just a really ugly grep
+		for _, sport := range sports {
+			if ta.Type == sport {
+				// returns a pointer
+				activity := models.NewStravaActivity(
+					ta.Id,
+					ta.Name,
+					ta.Distance,
+					ta.MovingTime,
+					ta.ElapsedTime,
+					ta.TotalElevationGain,
+					ta.Type,
+					ta.StartDate,
+					ta.Calories,
+					ta.AverageHeartRate,
+					ta.MaxHeartRate,
+				)
 				allActivities = append(allActivities, activity)
 			}
 		}
