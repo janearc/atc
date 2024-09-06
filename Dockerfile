@@ -1,6 +1,13 @@
 # Use an official Golang image as the base image for building the application
 FROM golang:1.18-alpine AS builder
 
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV CGO_ENABLED=0 \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH
+
 ENV ATC_ROOT=/app
 
 # Set the working directory inside the container
