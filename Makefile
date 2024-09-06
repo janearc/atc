@@ -1,6 +1,7 @@
 .ONESHELL:
 
 PACKAGE_DIRS=$(shell go list ./... | grep -v /vendor/)
+ECR_URI=`yq '.aws.ecr_uri' < config/secrets.yml`
 
 sanity:
 	@test -d ${ATC_ROOT} && test -d ${ATC_ROOT}/config && test -f ${ATC_ROOT}/config/config.yml && test -f ${ATC_ROOT}/config/secrets.yml && test -f ${ATC_ROOT}/config/version.yml && echo "sane. huzzah!"
@@ -23,6 +24,10 @@ rmsecrets:
 docker:
 	docker buildx build --no-cache --tag atc:latest --load .
 
+deploy:
+	docker tag atc:latest ${ECR_URI}:latest
+	docker push ${ECR_URI}:latest
+
 version:
 	@echo "Updating version data"
 	@echo "version:" > config/version.yml
@@ -31,3 +36,6 @@ version:
 	@echo "  branch: \"`git branch | grep '^*' | cut -d' ' -f 2`\"" >> config/version.yml
 
 build: test version secrets docker 
+
+push: build deploy
+
