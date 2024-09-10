@@ -11,7 +11,7 @@ import (
 func (s *Service) oauthRedirectHandler() {
 	// Redirect to Strava for OAuth
 	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
-		s.Log.Info("Redirecting to Strava for OAuth...")
+		s.Log.Infof("[%s]: Redirecting to Strava for OAuth -> [%s]...", r.URL.Path, s.Backend.GetAuthURL())
 		http.Redirect(w, r, s.Backend.GetAuthURL(), http.StatusFound)
 	})
 
@@ -22,7 +22,7 @@ func (s *Service) oauthRedirectHandler() {
 func (s *Service) oauthCallbackHandler() {
 	// Handle the callback from Strava and store the token in a cookie
 	http.HandleFunc("/oauth/callback", func(w http.ResponseWriter, r *http.Request) {
-		s.Log.Infof("Received callback from Strava with URL: %s", r.URL.String())
+		s.Log.Infof("[%s]: Received callback from Strava with URL: %s", r.URL.Path, r.URL.String())
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
@@ -38,10 +38,11 @@ func (s *Service) oauthCallbackHandler() {
 			return
 		}
 
+		// TODO: I think this might be causing a double request
 		token := s.Backend.GetAccessToken()
 		refreshToken := s.Backend.GetRefreshToken()
 
-		s.Log.Info("Successfully retrieved access token")
+		s.Log.Infof("[%s]: Successfully retrieved access token, writing cookies", r.URL.Path)
 
 		// Store the access token and refresh token in cookies
 		http.SetCookie(w, &http.Cookie{
@@ -63,6 +64,7 @@ func (s *Service) oauthCallbackHandler() {
 		})
 
 		// Redirect to the home page after setting the cookies
+		s.Log.Info("[%s]: Redirecting to /", r.URL.Path)
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
 
@@ -79,7 +81,7 @@ func (s *Service) activitiesHandler() {
 		cookie, err := r.Cookie("strava_token")
 		if err != nil {
 			if err == http.ErrNoCookie {
-				s.Log.Warn("No strava_token cookie found, redirecting to OAuth")
+				s.Log.Infof("[%s]: No strava_token cookie found, redirecting to Auth...", r.URL.Path)
 				http.Redirect(w, r, "/auth", http.StatusFound)
 				return
 			}
@@ -92,10 +94,10 @@ func (s *Service) activitiesHandler() {
 
 		// Check if the token is expired and refresh it if necessary
 		if s.Backend.IsTokenExpired() {
-			s.Log.Info("Token expired, attempting to refresh...")
+			s.Log.Infof("[%s]: Token expired, attempting to refresh...", r.URL.Path)
 			refreshCookie, err := r.Cookie("strava_refresh_token")
 			if err != nil {
-				s.Log.WithError(err).Error("Failed to retrieve refresh token cookie, redirecting to OAuth")
+				s.Log.WithError(err).Error("Failed to retrieve refresh token cookie, redirecting to Auth")
 				http.Redirect(w, r, "/auth", http.StatusFound)
 				return
 			}
@@ -103,7 +105,7 @@ func (s *Service) activitiesHandler() {
 			refreshToken := refreshCookie.Value
 			newAccessToken, err := s.Backend.RefreshAccessToken(refreshToken)
 			if err != nil {
-				s.Log.WithError(err).Error("Failed to refresh access token, redirecting to OAuth")
+				s.Log.WithError(err).Error("Failed to refresh access token, redirecting to Auth")
 				http.Redirect(w, r, "/auth", http.StatusFound)
 				return
 			}
@@ -122,7 +124,7 @@ func (s *Service) activitiesHandler() {
 
 			token = newAccessToken
 		} else {
-			s.Log.Info("Token is still valid, proceeding with fetching activities")
+			s.Log.Infof("[%s]: Token valud, proceeding with cached credentials to fetch activities...", r.URL.Path)
 		}
 
 		// Fetch the last six weeks of Swim, Bike, and Run activities
