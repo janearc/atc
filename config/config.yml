@@ -1,6 +1,6 @@
 server:
   port: 8080
-  redirect_uri: "https://swan-cool-tiger.ngrok.io/oauth/callback"
+  redirect_uri: "http://atc.archeavy.com/oauth/callback"
 
 strava:
   url: "https://www.strava.com"

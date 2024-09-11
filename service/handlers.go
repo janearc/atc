@@ -64,7 +64,7 @@ func (s *Service) oauthCallbackHandler() {
 		})
 
 		// Redirect to the home page after setting the cookies
-		s.Log.Info("[%s]: Redirecting to /", r.URL.Path)
+		s.Log.Infof("[%s]: Redirecting to /", r.URL.Path)
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
 
@@ -77,59 +77,13 @@ func (s *Service) activitiesHandler() {
 
 	// Handle requests to fetch activities and display CTL
 	http.HandleFunc("/activities", func(w http.ResponseWriter, r *http.Request) {
-		// Check for the OAuth token in cookies
-		cookie, err := r.Cookie("strava_token")
-		if err != nil {
-			if err == http.ErrNoCookie {
-				s.Log.Infof("[%s]: No strava_token cookie found, redirecting to Auth...", r.URL.Path)
-				http.Redirect(w, r, "/auth", http.StatusFound)
-				return
-			}
-			s.Log.WithError(err).Error("Failed to retrieve cookie")
-			http.Error(w, "Failed to retrieve cookie", http.StatusInternalServerError)
-			return
-		}
-
-		token := cookie.Value
-
-		// Check if the token is expired and refresh it if necessary
-		if s.Backend.IsTokenExpired() {
-			s.Log.Infof("[%s]: Token expired, attempting to refresh...", r.URL.Path)
-			refreshCookie, err := r.Cookie("strava_refresh_token")
-			if err != nil {
-				s.Log.WithError(err).Error("Failed to retrieve refresh token cookie, redirecting to Auth")
-				http.Redirect(w, r, "/auth", http.StatusFound)
-				return
-			}
-
-			refreshToken := refreshCookie.Value
-			newAccessToken, err := s.Backend.RefreshAccessToken(refreshToken)
-			if err != nil {
-				s.Log.WithError(err).Error("Failed to refresh access token, redirecting to Auth")
-				http.Redirect(w, r, "/auth", http.StatusFound)
-				return
-			}
-
-			s.Log.Info("Token refreshed successfully")
-
-			// Update the access token cookie with the new token
-			http.SetCookie(w, &http.Cookie{
-				Name:     "strava_token",
-				Value:    newAccessToken,
-				Path:     "/",
-				Expires:  time.Now().Add(24 * time.Hour),
-				HttpOnly: true,
-				Secure:   true,
-			})
-
-			token = newAccessToken
-		} else {
-			s.Log.Infof("[%s]: Token valud, proceeding with cached credentials to fetch activities...", r.URL.Path)
+		if s.Backend.Authenticated() == false {
+			s.Backend.CookieUp()
 		}
 
 		// Fetch the last six weeks of Swim, Bike, and Run activities
 		s.Log.Info("Fetching activities...")
-		stravaActivities, err := s.Backend.FetchActivities(token)
+		stravaActivities, err := s.Backend.FetchActivities()
 		if err != nil {
 			s.Log.WithError(err).Error("Failed to fetch activities")
 			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)

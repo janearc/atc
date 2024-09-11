@@ -22,11 +22,19 @@ rmsecrets:
 	cp config/secrets_example.yml config/secrets.yml
 
 docker:
-	docker buildx build --no-cache --tag atc:latest --load .
+	# docker buildx build --no-cache --tag atc:latest --load .
+	# docker buildx build --no-cache --tag atc:latest --platform linux/amd64,linux/arm64 --load .
+	docker buildx build --no-cache --tag ${ECR_URI}:latest --platform linux/amd64,linux/arm64 --push .
 
 deploy:
 	docker tag atc:latest ${ECR_URI}:latest
 	docker push ${ECR_URI}:latest
+
+kubestop:
+	kubectl scale deployment atc-deployment --replicas=0
+
+bounce:
+	kubectl rollout restart deployment atc-deployment
 
 version:
 	@echo "Updating version data"

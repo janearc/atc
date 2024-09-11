@@ -2,6 +2,7 @@ package planning
 
 import (
 	"atc/models"
+	"errors"
 	"math"
 )
 
@@ -12,16 +13,42 @@ func deltaTSS(athlete models.Athlete, targetVolume float64, targetCTL float64, a
 	filteredCTL := models.CalculateCTL(filteredActivities, 42)
 	filteredDuration := models.CalculateDurationHrs(filteredActivities)
 
-	// Calculate the necessary change in CTL
-	deltaCTL := targetCTL - filteredCTL
-
 	// Estimate the duration in hours (assuming linear relation with volume)
 	duration := targetVolume / filteredCTL * filteredDuration
 
-	// Calculate the new Intensity Factor based on target TSS
-	newIntensityFactor := math.Sqrt((targetTSS * athlete.Threshold) / (duration * 100))
+	if activityType == "Run" {
+		// Calculate the new Intensity Factor based on target CTL
+		newIntensityFactor := math.Sqrt((targetCTL * athlete.GetRunThreshold()) / (duration * 100))
 
-	// Return the target volume and intensity factor
-	return targetVolume, newIntensityFactor
+		// Calculate the new TSS based on the new Intensity Factor
+		newTSS := duration * newIntensityFactor * newIntensityFactor * 100
 
+		// Calculate the delta TSS
+		deltaTSS := newTSS - filteredCTL
+
+		return deltaTSS, nil
+	} else if activityType == "Bike" {
+		// Calculate the new Intensity Factor based on target CTL
+		newIntensityFactor := math.Sqrt((targetCTL * athlete.GetBikeThreshold()) / (duration * 100))
+
+		// Calculate the new TSS based on the new Intensity Factor
+		newTSS := duration * newIntensityFactor * newIntensityFactor * 100
+
+		// Calculate the delta TSS
+		deltaTSS := newTSS - filteredCTL
+
+		return deltaTSS, nil
+	} else if activityType == "Swim" {
+		// Calculate the new Intensity Factor based on target CTL
+		newIntensityFactor := math.Sqrt((targetCTL * athlete.GetSwimThreshold()) / (duration * 100))
+
+		// Calculate the new TSS based on the new Intensity Factor
+		newTSS := duration * newIntensityFactor * newIntensityFactor * 100
+
+		// Calculate the delta TSS
+		deltaTSS := newTSS - filteredCTL
+
+		return deltaTSS, nil
+	}
+	return 0, errors.New("Invalid activity type")
 }

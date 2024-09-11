@@ -1,12 +1,8 @@
 # Use an official Golang image as the base image for building the application
 FROM golang:1.18-alpine AS builder
 
-ARG TARGETOS
-ARG TARGETARCH
-
-ENV CGO_ENABLED=0 \
-    GOOS=$TARGETOS \
-    GOARCH=$TARGETARCH
+ENV GOOS=linux
+ENV GOARCH=amd64
 
 ENV ATC_ROOT=/app
 

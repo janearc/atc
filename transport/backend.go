@@ -26,16 +26,17 @@ type Secrets struct {
 }
 
 type Transport struct {
-	clientID     string
-	clientSecret string
-	redirectURI  string
-	url          string
-	httpClient   *http.Client
-	accessToken  string
-	refreshToken string
-	expiresAt    time.Time
-	openAIKey    string
-	config       *Config
+	clientID      string
+	clientSecret  string
+	redirectURI   string
+	url           string
+	httpClient    *http.Client
+	accessToken   string
+	refreshToken  string
+	expiresAt     time.Time
+	openAIKey     string
+	config        *Config
+	authenticated bool
 }
 
 // LoadSecrets reads the secrets.yml file and returns a Secrets struct.
@@ -68,13 +69,14 @@ func NewTransport(config *Config, secretsFile string) (*Transport, error) {
 	}
 
 	return &Transport{
-		clientID:     secrets.Strava.ClientID,
-		clientSecret: secrets.Strava.ClientSecret,
-		redirectURI:  config.Server.RedirectURI,
-		url:          config.Strava.Url,
-		httpClient:   &http.Client{},
-		openAIKey:    secrets.OpenAI.APIKey,
-		config:       config,
+		clientID:      secrets.Strava.ClientID,
+		clientSecret:  secrets.Strava.ClientSecret,
+		redirectURI:   config.Server.RedirectURI,
+		url:           config.Strava.Url,
+		httpClient:    &http.Client{},
+		openAIKey:     secrets.OpenAI.APIKey,
+		config:        config,
+		authenticated: false,
 	}, nil
 }
 
@@ -211,8 +213,77 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
+func (t *Transport) GetAthleteProfile() (*models.Athlete, error) {
+	if !t.Authenticated() {
+		t.CookieUp()
+	}
+
+	req, err := http.NewRequest("GET", t.url+"/api/v3/athlete", nil)
+	if err != nil {
+		return &models.Athlete{}, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+t.GetAccessToken())
+	resp, err := t.httpClient.Do(req)
+	if err != nil {
+		logrus.WithError(err).Error("failed to fetch athlete profile")
+		return &models.Athlete{}, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logrus.WithError(err).Error("failed to close response body")
+			return
+		}
+	}(resp.Body)
+
+	placeholder := struct {
+		ID            int64     `json:"id"`
+		Username      *string   `json:"username"`
+		ResourceState int       `json:"resource_state"`
+		Firstname     string    `json:"firstname"`
+		Lastname      string    `json:"lastname"`
+		City          string    `json:"city"`
+		State         string    `json:"state"`
+		Country       string    `json:"country"`
+		Sex           string    `json:"sex"`
+		Premium       bool      `json:"premium""`
+		Summit        bool      `json:"summit"`
+		CreatedAt     time.Time `json:"created_at"`
+		UpdatedAt     time.Time `json:"updated_at"`
+		BadgeTypeID   int       `json:"badge_type_id"`
+		ProfileMedium string    `json:"profile_medium"`
+		Profile       string    `json:"profile"`
+		Friend        *string   `json:"friend"`
+		Follower      *string   `json:"follower"`
+	}{} // this is a placeholder struct to hold the decoded json data
+
+	if err := json.NewDecoder(resp.Body).Decode(&placeholder); err != nil {
+		logrus.WithError(err).Error("failed to decode athlete profile")
+		return &models.Athlete{}, err
+	}
+
+	th := models.Thresholds{}
+	th.Run.ThresholdHR = t.config.Athlete.Run.ThresholdHR
+	th.Swim.ThresholdHR = t.config.Athlete.Swim.ThresholdHR
+	th.Bike.ThresholdHR = t.config.Athlete.Bike.ThresholdHR
+
+	athlete := models.NewAthlete(
+		fmt.Sprintf("%d", placeholder.ID),
+		placeholder.Firstname,
+		placeholder.Lastname,
+		placeholder.Sex,
+		&th)
+
+	logrus.Infof("Fetched athlete profile for %s", athlete.FullName())
+	return athlete, nil
+}
+
 // FetchActivities retrieves activities from Strava API that are of type Swim, Bike, or Run and occurred in the last six weeks.
-func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, error) {
+func (t *Transport) FetchActivities() ([]models.StravaActivity, error) {
+	token := t.GetAccessToken()
+
 	sixWeeksAgo := time.Now().AddDate(0, 0, -42).Unix()
 
 	sports := []string{"Swim", "Ride", "Run"}
@@ -225,12 +296,33 @@ func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, erro
 
 	// TODO: i also feel like this is a janky way to create urls for endpoint access.
 	//       there's probably a more elegant way to do this but let's do that in the future.
-	url := fmt.Sprintf("%s/api/v3/athlete/activities?access_token=%s&after=%d&per_page=200", t.url, token, sixWeeksAgo)
-	resp, err := t.httpClient.Get(url)
+
+	u, err := url.Parse(fmt.Sprintf("%s/api/v3/athlete/activities", t.url))
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch activities from Strava: %w", err)
+		logrus.WithError(err).Error("failed to parse URL")
+		return []models.StravaActivity{}, err
 	}
-	defer resp.Body.Close()
+	// Add query parameters
+	params := url.Values{}
+	params.Add("access_token", token)
+	params.Add("after", fmt.Sprintf("%d", sixWeeksAgo)) // Convert int to string for query params
+	params.Add("per_page", "200")
+
+	u.RawQuery = params.Encode()
+
+	resp, err := t.httpClient.Get(u.String())
+	if err != nil {
+		logrus.WithError(err).Error("failed to fetch activities from Strava")
+		return allActivities, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logrus.WithError(err).Error("failed to close response body")
+			return
+		}
+	}(resp.Body)
 
 	// Temporary structure to hold the raw JSON data
 	var tempActivities []struct {
@@ -248,7 +340,7 @@ func (t *Transport) FetchActivities(token string) ([]models.StravaActivity, erro
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&tempActivities); err != nil {
-		return nil, fmt.Errorf("failed to decode activities: %w", err)
+		return allActivities, err
 	}
 
 	// map the decoded json data to StravaActivity objects using the constructor
@@ -324,4 +416,8 @@ func (t *Transport) OpenAIRequest(prompt string) (string, error) {
 	}
 
 	return "", fmt.Errorf("no valid response from OpenAI")
+}
+
+func (t *Transport) Authenticated() bool {
+	return t.authenticated
 }
