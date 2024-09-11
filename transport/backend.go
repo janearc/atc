@@ -214,10 +214,6 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 }
 
 func (t *Transport) GetAthleteProfile() (*models.Athlete, error) {
-	if !t.Authenticated() {
-		t.CookieUp()
-	}
-
 	req, err := http.NewRequest("GET", t.url+"/api/v3/athlete", nil)
 	if err != nil {
 		return &models.Athlete{}, err
@@ -339,7 +335,10 @@ func (t *Transport) FetchActivities() ([]models.StravaActivity, error) {
 		MaxHeartRate       float64   `json:"max_heartrate"`
 	}
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+
 	if err := json.NewDecoder(resp.Body).Decode(&tempActivities); err != nil {
+		logrus.WithError(err).Errorf("Error while parsing JSON: %s", string(bodyBytes))
 		return allActivities, err
 	}
 
@@ -416,6 +415,14 @@ func (t *Transport) OpenAIRequest(prompt string) (string, error) {
 	}
 
 	return "", fmt.Errorf("no valid response from OpenAI")
+}
+
+func (t *Transport) AuthGood() {
+	t.authenticated = true
+}
+
+func (t *Transport) AuthBad() {
+	t.authenticated = false
 }
 
 func (t *Transport) Authenticated() bool {

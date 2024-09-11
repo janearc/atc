@@ -21,10 +21,11 @@ rmsecrets:
 	@echo "removing local secrets"
 	cp config/secrets_example.yml config/secrets.yml
 
+dockerauth:
+	aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 620055013658.dkr.ecr.us-west-2.amazonaws.com
+
 docker:
-	# docker buildx build --no-cache --tag atc:latest --load .
-	# docker buildx build --no-cache --tag atc:latest --platform linux/amd64,linux/arm64 --load .
-	docker buildx build --no-cache --tag ${ECR_URI}:latest --platform linux/amd64,linux/arm64 --push .
+	docker buildx build --no-cache --tag ${ECR_URI}:latest --platform linux/amd64 --push .
 
 deploy:
 	docker tag atc:latest ${ECR_URI}:latest
