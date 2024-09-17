@@ -26,13 +26,17 @@ func (s *Service) oauthCallbackHandler() {
 
 		s.Backend.AuthGood()
 
-		token := r.URL.Query().Get("code")
-		if token == "" {
+		code := r.URL.Query().Get("code")
+		if code == "" {
 			s.Log.Warn("No token found in callback")
 			http.Error(w, "No token found in callback", http.StatusBadRequest)
 		} else {
-			s.Log.Infof("Received token: %s", token)
-			s.Backend.SetAccessToken(token)
+			s.Log.Infof("Received token: %s", code)
+			e := s.Backend.ExchangeCodeForToken(code)
+			if e != nil {
+				s.Log.WithError(e).Error("Failed to exchange code for token")
+				http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
+			}
 		}
 
 		// TODO: where is this found?

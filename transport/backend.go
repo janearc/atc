@@ -90,66 +90,6 @@ func (t *Transport) GetAuthURL() string {
 	)
 }
 
-// ExchangeCodeForToken exchanges the authorization code for an access token and stores the refresh token and expiration time.
-func (t *Transport) ExchangeCodeForToken(code string) error {
-	reqURL := fmt.Sprintf("%s/oauth/token", t.url)
-	data := url.Values{
-		"client_id":     {t.clientID},
-		"client_secret": {t.clientSecret},
-		"code":          {code},
-		"grant_type":    {"authorization_code"},
-		"redirect_uri":  {t.redirectURI},
-	}
-
-	resp, err := t.httpClient.PostForm(reqURL, data)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to post form to exchange code for token")
-		t.AuthBad()
-		return err
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		logrus.WithError(err).Error("Failed to decode response body")
-		t.AuthBad()
-		return err
-	}
-
-	if token, ok := result["access_token"].(string); ok {
-		t.accessToken = token
-		t.AuthGood()
-	} else {
-		logrus.Error("Failed to retrieve access token from response body")
-		resultJSON, err := json.Marshal(result)
-		if err != nil {
-			t.AuthBad()
-			logrus.WithError(err).Error("Failed to marshal response body")
-			return fmt.Errorf("failed to retrieve access token")
-		}
-		logrus.WithField("result", string(resultJSON)).Error("unexpected response body")
-		t.AuthBad()
-		return fmt.Errorf("failed to retrieve access token")
-	}
-
-	if refreshToken, ok := result["refresh_token"].(string); ok {
-		t.refreshToken = refreshToken
-	} else {
-		logrus.Error("Failed to retrieve refresh token from response body")
-		t.AuthBad()
-		return fmt.Errorf("failed to retrieve refresh token")
-	}
-
-	if expiresIn, ok := result["expires_in"].(float64); ok {
-		logrus.Infof("Token expiry in %f seconds", expiresIn)
-		t.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
-	} else {
-		logrus.Info("Strange or missing expiry data in response")
-	}
-
-	return nil
-}
-
 // GetAccessToken returns the access token.
 func (t *Transport) GetAccessToken() string {
 	if t.accessToken == "" {
@@ -194,6 +134,66 @@ func (t *Transport) GetConfig() *Config {
 // IsTokenExpired checks if the current access token is expired.
 func (t *Transport) IsTokenExpired() bool {
 	return time.Now().After(t.expiresAt)
+}
+
+// ExchangeCodeForToken exchanges the authorization code for an access token and stores the refresh token and expiration time.
+func (t *Transport) ExchangeCodeForToken(code string) error {
+	reqURL := fmt.Sprintf("%s/oauth/token", t.url)
+	data := url.Values{
+		"client_id":     {t.clientID},
+		"client_secret": {t.clientSecret},
+		"code":          {code},
+		"grant_type":    {"authorization_code"},
+		"redirect_uri":  {t.redirectURI},
+	}
+
+	resp, err := t.httpClient.PostForm(reqURL, data)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to post form to exchange code for token")
+		t.AuthBad()
+		return err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		logrus.WithError(err).Error("Failed to decode response body")
+		t.AuthBad()
+		return err
+	}
+
+	if token, ok := result["access_token"].(string); ok {
+		t.SetAccessToken(token)
+		t.AuthGood()
+	} else {
+		logrus.Error("Failed to retrieve access token from response body")
+		resultJSON, err := json.Marshal(result)
+		if err != nil {
+			t.AuthBad()
+			logrus.WithError(err).Error("Failed to marshal response body")
+			return fmt.Errorf("failed to retrieve access token")
+		}
+		logrus.WithField("result", string(resultJSON)).Error("unexpected response body")
+		t.AuthBad()
+		return fmt.Errorf("failed to retrieve access token")
+	}
+
+	if refreshToken, ok := result["refresh_token"].(string); ok {
+		t.refreshToken = refreshToken
+	} else {
+		logrus.Error("Failed to retrieve refresh token from response body")
+		t.AuthBad()
+		return fmt.Errorf("failed to retrieve refresh token")
+	}
+
+	if expiresIn, ok := result["expires_in"].(float64); ok {
+		logrus.Infof("Token expiry in %f seconds", expiresIn)
+		t.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
+	} else {
+		logrus.Info("Strange or missing expiry data in response")
+	}
+
+	return nil
 }
 
 // RefreshAccessToken uses the refresh token to obtain a new access token.
