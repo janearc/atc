@@ -26,6 +26,11 @@ func (s *Service) oauthCallbackHandler() {
 
 		s.Backend.AuthGood()
 
+		// /oauth/callback?state=&code=e267a6277d46272660af1b69427b1c4b777115c9&scope=read,activity:read
+
+		s.Backend.SetAccessToken(r.URL.Query().Get("code"))
+		s.Backend.SetRefreshToken()
+
 		// Cookie the access token
 		http.SetCookie(w, &http.Cookie{
 			Name:       "strava_token",
@@ -52,6 +57,8 @@ func (s *Service) oauthCallbackHandler() {
 			Secure:   true,
 		})
 
+		// Also need to set this in the transport object
+
 		http.Redirect(w, r, "/activities", http.StatusFound)
 	})
 
@@ -67,6 +74,8 @@ func (s *Service) activitiesHandler() {
 		if s.Backend.Authenticated() == false {
 			s.Log.Info("not authenticated, passing to /auth")
 			http.Redirect(w, r, "/auth", http.StatusFound)
+		} else {
+			s.Log.Info("authenticated, attempting to fetch activities")
 		}
 
 		// Fetch the last six weeks of Swim, Bike, and Run activities
@@ -74,7 +83,7 @@ func (s *Service) activitiesHandler() {
 		stravaActivities, err := s.Backend.FetchActivities()
 		if err != nil {
 			s.Log.WithError(err).Error("Failed to fetch activities")
-			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
+			// http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
 			return
 		}
 
@@ -83,7 +92,10 @@ func (s *Service) activitiesHandler() {
 		if len(stravaActivities) == 0 {
 			// send to both syslog and the browser to let them know what's happened
 			s.Log.Warn("No activities found")
-			fmt.Fprintf(w, "No activities found")
+			_, perr := fmt.Fprintf(w, "No activities found")
+			if perr != nil {
+				s.Log.WithError(perr).Error("error writing to socket")
+			}
 			return
 		}
 

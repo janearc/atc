@@ -34,6 +34,9 @@ deploy:
 kubestop:
 	kubectl scale deployment atc-deployment --replicas=0
 
+kubelogs:
+	kubectl logs `kubectl get pods | grep Running | grep atc | cut -d ' ' -f 1`
+
 bounce:
 	kubectl rollout restart deployment atc-deployment
 

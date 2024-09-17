@@ -104,6 +104,7 @@ func (t *Transport) ExchangeCodeForToken(code string) error {
 	resp, err := t.httpClient.PostForm(reqURL, data)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to post form to exchange code for token")
+		t.AuthBad()
 		return err
 	}
 	defer resp.Body.Close()
@@ -111,19 +112,23 @@ func (t *Transport) ExchangeCodeForToken(code string) error {
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		logrus.WithError(err).Error("Failed to decode response body")
+		t.AuthBad()
 		return err
 	}
 
 	if token, ok := result["access_token"].(string); ok {
 		t.accessToken = token
+		t.AuthGood()
 	} else {
 		logrus.Error("Failed to retrieve access token from response body")
 		resultJSON, err := json.Marshal(result)
 		if err != nil {
+			t.AuthBad()
 			logrus.WithError(err).Error("Failed to marshal response body")
 			return fmt.Errorf("failed to retrieve access token")
 		}
 		logrus.WithField("result", string(resultJSON)).Error("unexpected response body")
+		t.AuthBad()
 		return fmt.Errorf("failed to retrieve access token")
 	}
 
@@ -131,12 +136,15 @@ func (t *Transport) ExchangeCodeForToken(code string) error {
 		t.refreshToken = refreshToken
 	} else {
 		logrus.Error("Failed to retrieve refresh token from response body")
+		t.AuthBad()
 		return fmt.Errorf("failed to retrieve refresh token")
 	}
 
 	if expiresIn, ok := result["expires_in"].(float64); ok {
 		logrus.Infof("Token expiry in %f seconds", expiresIn)
 		t.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
+	} else {
+		logrus.Info("Strange or missing expiry data in response")
 	}
 
 	return nil
@@ -144,12 +152,34 @@ func (t *Transport) ExchangeCodeForToken(code string) error {
 
 // GetAccessToken returns the access token.
 func (t *Transport) GetAccessToken() string {
+	if t.accessToken == "" {
+		logrus.Info("GetAccessToken called with undefined token")
+	}
 	return t.accessToken
+}
+
+// SetAccessToken writes the access token.
+func (t *Transport) SetAccessToken(token string) {
+	if t.accessToken != "" {
+		logrus.Info("SetAccessToken() overwriting existing token")
+	}
+	t.accessToken = token
 }
 
 // GetRefreshToken returns the stored refresh token.
 func (t *Transport) GetRefreshToken() string {
+	if t.refreshToken == "" {
+		logrus.Info("GetRefreshToken called with undefined token")
+	}
 	return t.refreshToken
+}
+
+// SetRefreshToken writes the refresh token
+func (t *Transport) SetRefreshToken(token string) {
+	if t.refreshToken != "" {
+		logrus.Info("SetRefreshToke() overwriting existing token")
+	}
+	t.refreshToken = token
 }
 
 // GetConfig returns the internal config used by the backend
@@ -418,10 +448,22 @@ func (t *Transport) OpenAIRequest(prompt string) (string, error) {
 }
 
 func (t *Transport) AuthGood() {
+	if t.authenticated == true {
+		logrus.Warn("AuthGood called but already authenticated")
+		return
+	}
+
 	t.authenticated = true
 }
 
 func (t *Transport) AuthBad() {
+	// github issue #1, this needs to push out to the reauth flow
+
+	if t.authenticated == false {
+		logrus.Warn("AuthBad called but already unauthenticated")
+		return
+	}
+
 	t.authenticated = false
 }
 
