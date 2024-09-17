@@ -1,6 +1,9 @@
 # Use an official Golang image as the base image for building the application
 FROM golang:1.18-alpine AS builder
 
+ENV GOOS=linux
+ENV GOARCH=amd64
+
 ENV ATC_ROOT=/app
 
 # Set the working directory inside the container

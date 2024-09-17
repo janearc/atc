@@ -11,7 +11,7 @@ import (
 func (s *Service) oauthRedirectHandler() {
 	// Redirect to Strava for OAuth
 	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
-		s.Log.Info("Redirecting to Strava for OAuth...")
+		s.Log.Infof("[%s]: Redirecting to Strava for OAuth -> [%s]...", r.URL.Path, s.Backend.GetAuthURL())
 		http.Redirect(w, r, s.Backend.GetAuthURL(), http.StatusFound)
 	})
 
@@ -22,48 +22,55 @@ func (s *Service) oauthRedirectHandler() {
 func (s *Service) oauthCallbackHandler() {
 	// Handle the callback from Strava and store the token in a cookie
 	http.HandleFunc("/oauth/callback", func(w http.ResponseWriter, r *http.Request) {
-		s.Log.Infof("Received callback from Strava with URL: %s", r.URL.String())
+		s.Log.Infof("[%s]: Received callback from Strava with URL: %s", r.URL.Path, r.URL.String())
+
+		s.Backend.AuthGood()
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
-			s.Log.Error("Code not found in callback")
-			http.Error(w, "Code not found", http.StatusBadRequest)
-			return
+			s.Log.Warn("No token found in callback")
+			http.Error(w, "No token found in callback", http.StatusBadRequest)
+		} else {
+			s.Log.Infof("Received token: %s", code)
+			e := s.Backend.ExchangeCodeForToken(code)
+			if e != nil {
+				s.Log.WithError(e).Error("Failed to exchange code for token")
+				http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
+			}
 		}
 
-		s.Log.Info("Exchanging code for token...")
-		if err := s.Backend.ExchangeCodeForToken(code); err != nil {
-			s.Log.WithError(err).Error("Failed to exchange code for token")
-			http.Error(w, "Failed to exchange code for token", http.StatusInternalServerError)
-			return
-		}
+		// TODO: where is this found?
+		// s.Backend.SetRefreshToken()
 
-		token := s.Backend.GetAccessToken()
-		refreshToken := s.Backend.GetRefreshToken()
-
-		s.Log.Info("Successfully retrieved access token")
-
-		// Store the access token and refresh token in cookies
+		// Cookie the access token
 		http.SetCookie(w, &http.Cookie{
-			Name:     "strava_token",
-			Value:    token,
-			Path:     "/",
-			Expires:  time.Now().Add(24 * time.Hour),
-			HttpOnly: true,
-			Secure:   true,
+			Name:       "strava_token",
+			Value:      s.Backend.GetAccessToken(),
+			Path:       "/",
+			Domain:     "",
+			Expires:    time.Now().Add(24 * time.Hour),
+			RawExpires: "",
+			MaxAge:     0,
+			Secure:     true,
+			HttpOnly:   true,
+			SameSite:   0,
+			Raw:        "",
+			Unparsed:   nil,
 		})
 
+		// Cookie the refresh token
 		http.SetCookie(w, &http.Cookie{
 			Name:     "strava_refresh_token",
-			Value:    refreshToken,
+			Value:    s.Backend.GetRefreshToken(),
 			Path:     "/",
 			Expires:  time.Now().Add(30 * 24 * time.Hour), // Refresh token typically lasts longer
 			HttpOnly: true,
 			Secure:   true,
 		})
 
-		// Redirect to the home page after setting the cookies
-		http.Redirect(w, r, "/", http.StatusFound)
+		// Also need to set this in the transport object
+
+		http.Redirect(w, r, "/activities", http.StatusFound)
 	})
 
 	return
@@ -75,62 +82,19 @@ func (s *Service) activitiesHandler() {
 
 	// Handle requests to fetch activities and display CTL
 	http.HandleFunc("/activities", func(w http.ResponseWriter, r *http.Request) {
-		// Check for the OAuth token in cookies
-		cookie, err := r.Cookie("strava_token")
-		if err != nil {
-			if err == http.ErrNoCookie {
-				s.Log.Warn("No strava_token cookie found, redirecting to OAuth")
-				http.Redirect(w, r, "/auth", http.StatusFound)
-				return
-			}
-			s.Log.WithError(err).Error("Failed to retrieve cookie")
-			http.Error(w, "Failed to retrieve cookie", http.StatusInternalServerError)
-			return
-		}
-
-		token := cookie.Value
-
-		// Check if the token is expired and refresh it if necessary
-		if s.Backend.IsTokenExpired() {
-			s.Log.Info("Token expired, attempting to refresh...")
-			refreshCookie, err := r.Cookie("strava_refresh_token")
-			if err != nil {
-				s.Log.WithError(err).Error("Failed to retrieve refresh token cookie, redirecting to OAuth")
-				http.Redirect(w, r, "/auth", http.StatusFound)
-				return
-			}
-
-			refreshToken := refreshCookie.Value
-			newAccessToken, err := s.Backend.RefreshAccessToken(refreshToken)
-			if err != nil {
-				s.Log.WithError(err).Error("Failed to refresh access token, redirecting to OAuth")
-				http.Redirect(w, r, "/auth", http.StatusFound)
-				return
-			}
-
-			s.Log.Info("Token refreshed successfully")
-
-			// Update the access token cookie with the new token
-			http.SetCookie(w, &http.Cookie{
-				Name:     "strava_token",
-				Value:    newAccessToken,
-				Path:     "/",
-				Expires:  time.Now().Add(24 * time.Hour),
-				HttpOnly: true,
-				Secure:   true,
-			})
-
-			token = newAccessToken
+		if s.Backend.Authenticated() == false {
+			s.Log.Info("not authenticated, passing to /auth")
+			http.Redirect(w, r, "/auth", http.StatusFound)
 		} else {
-			s.Log.Info("Token is still valid, proceeding with fetching activities")
+			s.Log.Info("authenticated, attempting to fetch activities")
 		}
 
 		// Fetch the last six weeks of Swim, Bike, and Run activities
 		s.Log.Info("Fetching activities...")
-		stravaActivities, err := s.Backend.FetchActivities(token)
+		stravaActivities, err := s.Backend.FetchActivities()
 		if err != nil {
 			s.Log.WithError(err).Error("Failed to fetch activities")
-			http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
+			// http.Error(w, "Failed to fetch activities", http.StatusInternalServerError)
 			return
 		}
 
@@ -139,7 +103,10 @@ func (s *Service) activitiesHandler() {
 		if len(stravaActivities) == 0 {
 			// send to both syslog and the browser to let them know what's happened
 			s.Log.Warn("No activities found")
-			fmt.Fprintf(w, "No activities found")
+			_, perr := fmt.Fprintf(w, "No activities found")
+			if perr != nil {
+				s.Log.WithError(perr).Error("error writing to socket")
+			}
 			return
 		}
 

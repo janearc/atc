@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: atc-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: atc
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

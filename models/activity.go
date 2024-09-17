@@ -130,6 +130,17 @@ func CalculateCTL(activities []Activity, days int) float64 {
 	return ctl
 }
 
+// calculcate duration calculates the duration of activities in hours.
+func CalculateDurationHrs(activities []Activity) float64 {
+	var duration float64
+	for _, activity := range activities {
+		duration += float64(activity.MovingTime) / 3600.0
+	}
+	return duration
+}
+
+// TODO: CalculateVolumeKms(activities []Activity) float64
+
 // FilterActivitiesByType filters the activities by supplied type, e.g., Swim, Ride, Run
 func FilterActivitiesByType(activities []Activity, activityType string) []Activity {
 	var filtered []Activity

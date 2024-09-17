@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atc-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atc
+  template:
+    metadata:
+      labels:
+        app: atc
+    spec:
+      containers:
+      - name: atc
+        image: .aws.ecr_uri:latest
+        ports:
+        - containerPort: 8080
