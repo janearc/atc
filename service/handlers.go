@@ -26,10 +26,17 @@ func (s *Service) oauthCallbackHandler() {
 
 		s.Backend.AuthGood()
 
-		// /oauth/callback?state=&code=e267a6277d46272660af1b69427b1c4b777115c9&scope=read,activity:read
+		token := r.URL.Query().Get("code")
+		if token == "" {
+			s.Log.Warn("No token found in callback")
+			http.Error(w, "No token found in callback", http.StatusBadRequest)
+		} else {
+			s.Log.Infof("Received token: %s", token)
+			s.Backend.SetAccessToken(token)
+		}
 
-		s.Backend.SetAccessToken(r.URL.Query().Get("code"))
-		s.Backend.SetRefreshToken()
+		// TODO: where is this found?
+		// s.Backend.SetRefreshToken()
 
 		// Cookie the access token
 		http.SetCookie(w, &http.Cookie{

@@ -162,6 +162,8 @@ func (t *Transport) GetAccessToken() string {
 func (t *Transport) SetAccessToken(token string) {
 	if t.accessToken != "" {
 		logrus.Info("SetAccessToken() overwriting existing token")
+	} else {
+		logrus.Info("SetAccessToken() writing new token")
 	}
 	t.accessToken = token
 }
@@ -178,6 +180,8 @@ func (t *Transport) GetRefreshToken() string {
 func (t *Transport) SetRefreshToken(token string) {
 	if t.refreshToken != "" {
 		logrus.Info("SetRefreshToke() overwriting existing token")
+	} else {
+		logrus.Info("SetRefreshToken() writing new token")
 	}
 	t.refreshToken = token
 }
@@ -244,6 +248,10 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 }
 
 func (t *Transport) GetAthleteProfile() (*models.Athlete, error) {
+	if t.Authenticated() == false {
+		logrus.Warn("GetAthleteProfile called but not authenticated")
+		return &models.Athlete{}, fmt.Errorf("not authenticated")
+	}
 	req, err := http.NewRequest("GET", t.url+"/api/v3/athlete", nil)
 	if err != nil {
 		return &models.Athlete{}, err
@@ -308,6 +316,11 @@ func (t *Transport) GetAthleteProfile() (*models.Athlete, error) {
 
 // FetchActivities retrieves activities from Strava API that are of type Swim, Bike, or Run and occurred in the last six weeks.
 func (t *Transport) FetchActivities() ([]models.StravaActivity, error) {
+	if t.Authenticated() == false {
+		logrus.Warn("FetchActivities called but not authenticated")
+		return []models.StravaActivity{}, fmt.Errorf("not authenticated")
+	}
+
 	token := t.GetAccessToken()
 
 	sixWeeksAgo := time.Now().AddDate(0, 0, -42).Unix()
