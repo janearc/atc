@@ -377,11 +377,10 @@ func (t *Transport) FetchActivities() ([]models.StravaActivity, error) {
 		AverageHeartRate   float64   `json:"average_heartrate"`
 		MaxHeartRate       float64   `json:"max_heartrate"`
 	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-
+	
 	if err := json.NewDecoder(resp.Body).Decode(&tempActivities); err != nil {
-		logrus.WithError(err).Errorf("Error while parsing JSON: %s", string(bodyBytes))
+		logrus.WithError(err).Errorf("FetchActivities() failed to decode response body")
+		//logrus.WithError(err).Errorf("Error while parsing JSON: %s", string(bodyBytes))
 		return allActivities, err
 	}
 
