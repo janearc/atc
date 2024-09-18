@@ -78,6 +78,19 @@ footer {
     padding: 10px;
 }
 
+.artwork-container {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 200px;
+    height: 200px;
+    background-image: url('artwork.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.8;
+}
+
 .artwork {
     width: 200px;
     position: absolute;

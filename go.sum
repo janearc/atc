@@ -3,8 +3,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/janearc/sux v0.0.0-20240913005258-171287c4812d h1:QZAz2rZuv7laTSBtr4jYa+CImXtKRBHt4ey8/3lU7BM=
-github.com/janearc/sux v0.0.0-20240913005258-171287c4812d/go.mod h1:4m4Uyj5WLtLO5AMvlTPnEfeTZd4fpgswKkjXVqHwVBw=
 github.com/janearc/sux v0.0.0-20240918172625-0f4a3aa4a1e1 h1:axL8VIpfjTZAsEouzyRaOQntWTJK2N7XwhFcbUD4Lq8=
 github.com/janearc/sux v0.0.0-20240918172625-0f4a3aa4a1e1/go.mod h1:MOVThwiFjvEpVseaA3nmoEScKP+PGd3RnC/ax9voTnE=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

@@ -14,33 +14,31 @@
   </header>
 
   <nav class="tabs">
-    <button class="tab" onclick="showContent('overview')">Overview</button>
-    <button class="tab" onclick="showContent('workouts')">Workouts</button>
-    <button class="tab" onclick="showContent('performance')">Performance</button>
+    <a href="/overview"><button class="tab">Overview</button></a>
+    <a href="/activities"><button class="tab">Activities</button></a>
+    <a href="/planning"><button class="tab">Planning</button></a>
   </nav>
 
   <div id="content">
-    <div id="overview" class="tab-content">
+    <div id="assessment" class="tab-content">
       <h2>Overview</h2>
-      <p>Here is an overview of your activities and stats.</p>
+      <p>Overview is an assessment of your current status.</p>
     </div>
 
-    <div id="workouts" class="tab-content" style="display: none;">
-      <h2>Workouts</h2>
+    <div id="activities" class="tab-content" style="display: none;">
+      <h2>Activities</h2>
       <p>View and manage your workout data here.</p>
     </div>
 
-    <div id="performance" class="tab-content" style="display: none;">
-      <h2>Performance</h2>
-      <p>Check your performance trends and graphs here.</p>
+    <div id="planning" class="tab-content" style="display: none;">
+      <h2>Planning</h2>
+      <p>Allows you to predict performance or determine required volume and intensity for a given fitness.</p>
     </div>
   </div>
-
-  <footer>
-    <img src="artwork.jpeg" alt="Artwork" class="artwork">
-  </footer>
 </div>
 
 <script src="app.js"></script>
+<div class="artwork-container"></div>
+
 </body>
 </html>

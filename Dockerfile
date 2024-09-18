@@ -5,6 +5,7 @@ ENV GOOS=linux
 ENV GOARCH=amd64
 
 ENV ATC_ROOT=/app
+ENV SUX_ROOT=/app
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -23,6 +24,7 @@ RUN go build -o atc .
 FROM alpine:latest
 
 ENV ATC_ROOT=/app
+ENV SUX_ROOT=/app
 
 # Copy the built Go binary from the builder image
 COPY --from=builder /app/atc .

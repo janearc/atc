@@ -5,6 +5,9 @@ server:
 strava:
   url: "https://www.strava.com"
 
+aws:
+    region: "us-west-2"
+
 athlete:
   run:
     threshold_hr: 171
