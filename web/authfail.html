@@ -9,7 +9,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Authentication Failed</title>
   <!-- Meta refresh for a 5-second delay before redirecting -->
-  <meta http-equiv="refresh" content="5;url=/login">
+  <!-- <meta http-equiv="refresh" content="5;url=/login" -->
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -33,11 +33,33 @@
 </head>
 <body>
 <div class="container">
-  <h1>Authentication Failure Redirect</h1>
+  <h1>Authentication Failure </h1>
   <p>Apologies, there's been an authentication failure. Redirecting to /.</p>
   <p>If the redirect does not happen, <a href="/">click here</a>.</p>
 </div>
-</body>
+<script>
+  // Function to get query parameters from URL
+  function getQueryParam(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  }
+
+  // Check if the user was redirected
+  const error = getQueryParam('error');
+    if (error === 'notoken') {
+        // Redirect to the home page after 5 seconds
+        setTimeout(() => {
+          document.getElementById("content").innerHTML = `
+                <button id="auth-button">Authenticate with Strava</button>
+            `;
+          document.getElementById("auth-button").addEventListener("click", function() {
+            window.location.href = "/auth";
+          });        }, 5000);
+    } else {
+      // not super clear how we would get here but i'm bummed for you
+    }
+ </script>
+  </body>
 </html></title>
 </head>
 <body>

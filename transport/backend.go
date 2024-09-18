@@ -222,6 +222,7 @@ func (t *Transport) RefreshAccessToken(refreshToken string) (string, error) {
 		return "", err
 	}
 
+	// NOTE: This doesn't actually set cookies because we're not talking to the client
 	if newAccessToken, ok := result["access_token"].(string); ok {
 		t.accessToken = newAccessToken
 		if expiresIn, ok := result["expires_in"].(float64); ok {
