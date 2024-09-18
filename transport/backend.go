@@ -2,7 +2,6 @@ package transport
 
 import (
 	"atc/models"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -50,7 +49,13 @@ func LoadSecrets(secretsFileName string) (*Secrets, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			logrus.WithError(err).Error("failed to close secrets file")
+			return
+		}
+	}(file)
 
 	secrets := &Secrets{}
 	decoder := yaml.NewDecoder(file)
@@ -247,6 +252,7 @@ func (t *Transport) ExampleRequest(endpoint string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
+// GetAthleteProfile retrieves the athlete's profile from Strava
 func (t *Transport) GetAthleteProfile() (*models.Athlete, error) {
 	if t.Authenticated() == false {
 		logrus.Warn("GetAthleteProfile called but not authenticated")
@@ -377,10 +383,9 @@ func (t *Transport) FetchActivities() ([]models.StravaActivity, error) {
 		AverageHeartRate   float64   `json:"average_heartrate"`
 		MaxHeartRate       float64   `json:"max_heartrate"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&tempActivities); err != nil {
 		logrus.WithError(err).Errorf("FetchActivities() failed to decode response body")
-		//logrus.WithError(err).Errorf("Error while parsing JSON: %s", string(bodyBytes))
 		return allActivities, err
 	}
 
@@ -411,54 +416,7 @@ func (t *Transport) FetchActivities() ([]models.StravaActivity, error) {
 	return allActivities, nil
 }
 
-// OpenAIRequest sends a request to OpenAI's API and logs the full response using logrus.
-func (t *Transport) OpenAIRequest(prompt string) (string, error) {
-	requestBody, err := json.Marshal(map[string]interface{}{
-		"model": "gpt-3.5-turbo",
-		"messages": []map[string]string{
-			{"role": "system", "content": "You are a helpful assistant."},
-			{"role": "user", "content": prompt},
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal request body: %w", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(requestBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+t.openAIKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := t.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	logrus.WithField("response_body", string(body)).Info("Full OpenAI Response")
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	if choices, ok := response["choices"].([]interface{}); ok && len(choices) > 0 {
-		if message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{}); ok {
-			return message["content"].(string), nil
-		}
-	}
-
-	return "", fmt.Errorf("no valid response from OpenAI")
-}
-
+// AuthGood sets the authenticated flag to true.
 func (t *Transport) AuthGood() {
 	if t.authenticated == true {
 		logrus.Warn("AuthGood called but already authenticated")
@@ -468,6 +426,7 @@ func (t *Transport) AuthGood() {
 	t.authenticated = true
 }
 
+// AuthBad sets the authenticated flag to false.
 func (t *Transport) AuthBad() {
 	// github issue #1, this needs to push out to the reauth flow
 
@@ -479,6 +438,7 @@ func (t *Transport) AuthBad() {
 	t.authenticated = false
 }
 
+// Authenticated returns the authenticated flag.
 func (t *Transport) Authenticated() bool {
 	return t.authenticated
 }

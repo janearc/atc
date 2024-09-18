@@ -3,6 +3,7 @@ package service
 import (
 	"atc/transport"
 	"fmt"
+	"github.com/janearc/sux/sux"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -14,6 +15,7 @@ type Service struct {
 	Backend *transport.Transport
 	Config  *transport.Config
 	Log     *logrus.Logger
+	Sux     *sux.Sux
 }
 
 type WebService struct {
@@ -51,6 +53,11 @@ func NewService(configFileName string, versionFileName string, secretsFileName s
 		log.Fatalf("Failed to initialize transport: %v", err)
 	}
 
+	//
+	// create the sux facility
+	//
+	thisSux := sux.NewSux(configFileName, versionFileName, secretsFileName)
+
 	s := &Service{
 		Config:  config,
 		Log:     log,
@@ -59,6 +66,7 @@ func NewService(configFileName string, versionFileName string, secretsFileName s
 			// NOTE: this creates the http listener
 			Handle: instantiateWebService(),
 		},
+		Sux: thisSux,
 	}
 
 	// Set up the http request handlers ("endpoints")
