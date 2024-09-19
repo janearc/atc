@@ -39,9 +39,6 @@ func (s *Service) oauthCallbackHandler() {
 			}
 		}
 
-		// TODO: where is this found?
-		// s.Backend.SetRefreshToken()
-
 		// Cookie the access token
 		http.SetCookie(w, &http.Cookie{
 			Name:       "strava_token",

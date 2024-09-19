@@ -3,10 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
     <title>ATC</title>
 </head>
 <body>
-<h1>Welcome to ATC</h1>
+
+<header>
+    <h1>Welcome to Athlete Tracker</h1>
+    <p>Planning, Tracking, and Assessment.</p>
+</header>
+
+<nav>
+    <a href="/activities">View Activities</a>
+    <a href="/workouts">Workouts</a>
+    <a href="/performance">Performance</a>
+</nav>
+
+
 
 <!-- This div will display the OAuth button or the activities/CTL -->
 <div id="content">
@@ -16,6 +29,17 @@
 <script>
     // Function to check if the token is expired and show the appropriate content
     function checkTokenAndLoadContent() {
+        const token = get_cookie('strava_token');
+        const refresh = get_cookie('strava_refresh_token');
+        if (!token || !refresh) {
+            // If no token, redirect the browser to authfail.html where they can authenticate
+            window.location.href = '/authfail.html?error=notoken';
+        }
+        else {
+            window.location.href = '/home.html';
+        }
+
+        // this should be moved to the activities endpoint and not be here in index.html
         fetch("/activities", { method: 'GET' })
             .then(response => {
                 if (response.redirected) {
@@ -47,5 +71,6 @@
     // Check the token and load content when the page loads
     window.onload = checkTokenAndLoadContent;
 </script>
+<div class="artwork-container"></div>
 </body>
 </html>

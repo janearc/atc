@@ -56,6 +56,7 @@ func NewService(configFileName string, versionFileName string, secretsFileName s
 	//
 	// create the sux facility
 	//
+
 	thisSux := sux.NewSux(configFileName, versionFileName, secretsFileName)
 
 	s := &Service{

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Athlete Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Welcome, <span id="athlete-name">Athlete Name</span></h1>
+    <p>Date: <span id="current-date"></span></p>
+  </header>
+
+  <nav class="tabs">
+    <a href="/overview"><button class="tab">Overview</button></a>
+    <a href="/activities"><button class="tab">Activities</button></a>
+    <a href="/planning"><button class="tab">Planning</button></a>
+  </nav>
+
+  <div id="content">
+    <div id="assessment" class="tab-content">
+      <h2>Overview</h2>
+      <p>Overview is an assessment of your current status.</p>
+    </div>
+
+    <div id="activities" class="tab-content" style="display: none;">
+      <h2>Activities</h2>
+      <p>View and manage your workout data here.</p>
+    </div>
+
+    <div id="planning" class="tab-content" style="display: none;">
+      <h2>Planning</h2>
+      <p>Allows you to predict performance or determine required volume and intensity for a given fitness.</p>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<div class="artwork-container"></div>
+
+</body>
+</html>
